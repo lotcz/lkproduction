@@ -19,6 +19,7 @@ if (!defined( 'ABSPATH')) {
 require_once __DIR__ . '/includes/lkproduction-cart.php';
 require_once __DIR__ . '/includes/lkproduction-product.php';
 require_once __DIR__ . '/includes/lkproduction-order.php';
+require_once __DIR__ . '/includes/lkproduction-calendar.php';
 
 /* STRINGS REPLACEMENTS */
 add_filter('gettext', 'rental_rename_subtotal_to_daily_fee', 20, 3);
@@ -49,6 +50,7 @@ function lkproduction_scripts() {
 	);
 }
 
+/* ADMIN STYLES */
 add_action('admin_enqueue_scripts', 'lkproduction_admin_scripts');
 function lkproduction_admin_scripts() {
 	wp_enqueue_style(
@@ -56,5 +58,52 @@ function lkproduction_admin_scripts() {
 		plugin_dir_url( __FILE__ ) . '/static/lkproduction-admin.css',
 		[],
 		filemtime(plugin_dir_path(__FILE__) . '/static/lkproduction-admin.css')
+	);
+}
+
+// Add Menu Item
+add_action('admin_menu', 'rental_calendar_menu');
+function rental_calendar_menu() {
+	add_menu_page(
+		'Kalendář akcí',
+		'LK Rent',
+		'manage_options',
+		'rental-calendar',
+		'lk_rental_render_calendar_global',
+		'dashicons-calendar-alt',
+		1
+	);
+}
+
+function lk_rental_render_calendar_global() {
+	echo '<h1>Kalendář akcí</h1>';
+	lk_rental_render_calendar();
+}
+
+add_action('admin_menu', 'rental_calendar_submenu_links', 20);
+function rental_calendar_submenu_links() {
+	add_submenu_page(
+		'rental-calendar',
+		'Kalendář akcí',
+		'Kalendář akcí',
+		'manage_options',
+		'rental-calendar',
+		'rental_calendar_render_page'
+	);
+
+	add_submenu_page(
+		'rental-calendar',
+		'Objednávky',
+		'Objednávky',
+		'manage_options',
+		'edit.php?post_type=shop_order&source=lk'
+	);
+
+	add_submenu_page(
+		'rental-calendar',
+		'Nová objednávka',
+		'Nová objednávka',
+		'manage_options',
+		'post-new.php?post_type=shop_order&source=lk'
 	);
 }

@@ -27,18 +27,21 @@ function rental_editable_fields_in_general_section( $order ) {
 		'label'         => __( 'Akce:', 'lkproduction-plugin' ),
 		'value'         => $event,
 		'wrapper_class' => 'form-field-wide',
+		'custom_attributes' => array(
+			'required' => 'required' // This adds the 'required' attribute
+		)
 	) );
 
 	// Start Date & Time
 	echo '<p class="form-field form-field-wide">
             <label for="rental_start_date">' . __( 'Od:', 'lkproduction-plugin' ) . '</label>
-            <input type="datetime-local" name="rental_start_date" id="rental_start_date" value="' . esc_attr( $start_formatted ) . '" />
+            <input type="datetime-local" name="rental_start_date" required id="rental_start_date" value="' . esc_attr( $start_formatted ) . '" />
           </p>';
 
 	// End Date & Time
 	echo '<p class="form-field form-field-wide">
             <label for="rental_end_date">' . __( 'Do:', 'lkproduction-plugin' ) . '</label>
-            <input type="datetime-local" name="rental_end_date" id="rental_end_date" value="' . esc_attr( $end_formatted ) . '" />
+            <input type="datetime-local" name="rental_end_date" required id="rental_end_date" value="' . esc_attr( $end_formatted ) . '" />
           </p>';
 
 	echo '</div><br class="clear" />';
@@ -49,6 +52,17 @@ function rental_editable_fields_in_general_section( $order ) {
  */
 add_action('woocommerce_process_shop_order_meta', 'rental_save_general_section_fields');
 function rental_save_general_section_fields($order_id) {
+	// 1. VALIDATION: Check if fields are empty before doing anything
+	$start_date = isset($_POST['rental_start_date']) ? sanitize_text_field($_POST['rental_start_date']) : '';
+	$end_date   = isset($_POST['rental_end_date'])   ? sanitize_text_field($_POST['rental_end_date'])   : '';
+
+	if (empty($start_date) || empty($end_date)) {
+		// This creates the red "Error" notice at the top of the admin page
+		WC_Admin_Meta_Boxes::add_error( __('Rental dates cannot be empty. Order totals were not recalculated.', 'lk-production-plugin') );
+		return; // Stop the function here
+	}
+
+	// 2. PROCEED WITH SAVING
 	$order = wc_get_order($order_id);
 	$old_days = lk_order_get_total_days($order);
 
@@ -56,23 +70,26 @@ function rental_save_general_section_fields($order_id) {
 		$order->update_meta_data( '_rental_event', sanitize_text_field( $_POST['rental_event_name'] ) );
 	}
 
-	if ( isset( $_POST['rental_start_date'] ) ) {
-		$order->update_meta_data( '_rental_start', sanitize_text_field( $_POST['rental_start_date'] ) );
-	}
-
-	if ( isset( $_POST['rental_end_date'] ) ) {
-		$order->update_meta_data( '_rental_end', sanitize_text_field( $_POST['rental_end_date'] ) );
-	}
-
+	$order->update_meta_data( '_rental_start', $start_date );
+	$order->update_meta_data( '_rental_end', $end_date );
 	$order->save();
 
+	// 3. RECALCULATION LOGIC
 	$days = lk_order_get_total_days($order);
+
 	if ($old_days !== $days) {
 		$price = lk_order_get_total_price($order);
+
+		// Force update in DB and object
+		update_post_meta( $order_id, '_order_total', $price );
 		$order->set_total($price);
 		$order->save();
-		$order->add_order_note(sprintf( __( 'Cena objednávky přepočítána na %.0f,- pro nový počet dnů: %d', 'lk-production-plugin' ), $price, $days));
-		update_post_meta( $order_id, '_order_total', $price );
+
+		$order->add_order_note(sprintf(
+			__( 'Cena objednávky přepočítána na %.0f,- pro nový počet dnů: %d', 'lk-production-plugin' ),
+			$price,
+			$days
+		));
 	}
 }
 
@@ -148,7 +165,7 @@ function rental_populate_admin_order_columns( $column ) {
 }
 
 /**
- * Make the start date column sortable
+ * Make the date columns sortable
  */
 add_filter( 'manage_edit-shop_order_sortable_columns', 'rental_sortable_columns' );
 function rental_sortable_columns( $columns ) {
@@ -183,17 +200,55 @@ function rental_check_overbooking_warning($order) {
 	$start = $order->get_meta('_rental_start');
 	$end = $order->get_meta('_rental_end');
 
+	$conflicts = [];
+
 	foreach ($order->get_items() as $item) {
 		$product_id = $item->get_product_id();
-		$total_owned = (int) get_post_meta( $product_id, '_rental_total_stock', true );
+		$total_owned = lk_get_total_owned($product_id);
 		$already_booked = lk_get_booked_units($product_id, $start, $end);
-
-		if ( $already_booked > $total_owned ) {
-			echo '<div style="padding: 10px; background: #fbeaea; border-left: 4px solid #d63638; margin-top: 10px;">';
-			echo '<strong>⚠️ Překročena kapacita:</strong> ';
-			echo $item->get_name() . ' je zamluveno <strong>' . $already_booked . '</strong> kusů, ';
-			echo 'ale celkový počet je jen <strong>' . $total_owned . '</strong>.';
-			echo '</div>';
+		if ($already_booked > $total_owned) {
+			$conflicts[] = $item->get_name();
 		}
+	}
+
+	if (!empty($conflicts)) {
+		echo '<div style="padding: 10px; background: #fbeaea; border-left: 4px solid #d63638; margin-top: 10px;">';
+		echo '<strong>⚠️ Překročena kapacita u položek:</strong> ';
+		echo join(', ', $conflicts);
+		echo '</div>';
+	}
+}
+
+/**
+ * Display an overbooking warning directly under the product in the admin order items list
+ */
+add_action( 'woocommerce_after_order_itemmeta', 'lk_admin_item_overbooking_warning', 10, 3 );
+function lk_admin_item_overbooking_warning( $item_id, $item, $product ) {
+	// Only run this in the admin backend
+	if (!is_admin() || !$product) return;
+
+	// 1. Get the Order and Dates
+	$order = $item->get_order();
+	$start = $order->get_meta('_rental_start');
+	$end = $order->get_meta('_rental_end');
+
+	if (!$start || !$end) return;
+
+	// 2. Get Inventory and Bookings
+	$product_id = $product->get_id();
+	$total_owned = lk_get_total_owned($product_id);
+
+	// Use our optimized function (excluding current order to see what ELSE is booked)
+	// Or include it to see the "Total Impact"
+	$booked_elsewhere = lk_get_booked_units($product_id, $start, $end);
+
+	// 3. Check for shortage
+	if ($booked_elsewhere > $total_owned) {
+		$shortage = $booked_elsewhere - $total_owned;
+
+		echo '<div class="rental-overbooking-alert" style="margin-top: 5px; padding: 5px 8px; background-color: #fbeaea; border-left: 3px solid #d63638; color: #d63638; font-size: 11px; display: inline-block;">';
+		echo '<strong>⚠️ Pozor: Překročený stav skladu!</strong><br>';
+		echo sprintf( 'V tomto termínu je celkem rezervováno %d ks, ale vlastníte pouze %d ks (Chybí: %d ks).', $booked_elsewhere, $total_owned, $shortage );
+		echo '</div>';
 	}
 }

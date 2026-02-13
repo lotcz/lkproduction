@@ -57,6 +57,14 @@ function lk_cart_get_total_price(): float {
 
 /* ORDER */
 
+function lk_get_valid_order_states(): array {
+	return ['wc-pending', 'wc-processing', 'wc-completed', 'wc-on-hold'];
+}
+
+function lk_get_valid_order_states_sql(): string {
+	return "'" . join("','", lk_get_valid_order_states()) . "'";
+}
+
 function lk_order_get_daily_price($order): float {
 	if (empty($order)) return 0;
 
@@ -84,36 +92,45 @@ function lk_order_get_total_price($order): float {
 
 /* PRODUCT */
 
-/**
- * Calculate how many units are already booked for a specific product and date range
- */
+function lk_get_total_owned($product_id) {
+	return (int) get_post_meta( $product_id, '_rental_total_stock', true );
+}
+
 function lk_get_booked_units($product_id, $start_date, $end_date) {
 	global $wpdb;
 
-	// This query finds all orders that OVERLAP with the selected dates
-	// Logic: (StartA <= EndB) AND (EndA >= StartB)
-	$order_ids = $wpdb->get_col( $wpdb->prepare( "
-        SELECT post_id FROM {$wpdb->postmeta} 
-        WHERE meta_key = '_rental_start' 
-        AND meta_value <= %s
-        AND post_id IN (
-            SELECT post_id FROM {$wpdb->postmeta} 
-            WHERE meta_key = '_rental_end' 
-            AND meta_value >= %s
-        )
-    ", $end_date, $start_date ) );
+	$states = lk_get_valid_order_states_sql();
 
-	$booked_count = 0;
-	foreach ( $order_ids as $id ) {
-		$order = wc_get_order( $id );
-		// Skip cancelled or failed orders
-		if ( in_array( $order->get_status(), ['cancelled', 'failed'] ) ) continue;
+	$query = $wpdb->prepare("
+        SELECT SUM(item_meta_qty.meta_value) 
+        FROM {$wpdb->prefix}woocommerce_order_items AS items
+        -- Join to get the Product ID for each line item
+        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS item_meta_product 
+            ON items.order_item_id = item_meta_product.order_item_id
+        -- Join to get the Quantity for each line item
+        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS item_meta_qty 
+            ON items.order_item_id = item_meta_qty.order_item_id
+        -- Join to Order Meta for Rental Start Date
+        INNER JOIN {$wpdb->postmeta} AS meta_start 
+            ON items.order_id = meta_start.post_id
+        -- Join to Order Meta for Rental End Date
+        INNER JOIN {$wpdb->postmeta} AS meta_end 
+            ON items.order_id = meta_end.post_id
+        -- Join to Posts to check Order Status
+        INNER JOIN {$wpdb->posts} AS posts 
+            ON items.order_id = posts.ID
+        WHERE item_meta_product.meta_key = '_product_id' 
+            AND item_meta_product.meta_value = %d
+            AND item_meta_qty.meta_key = '_qty'
+            AND meta_start.meta_key = '_rental_start'
+            AND meta_end.meta_key = '_rental_end'
+            -- Date Overlap Logic: (StartA <= EndB) AND (EndA >= StartB)
+            AND meta_start.meta_value <= %s
+            AND meta_end.meta_value >= %s
+            AND posts.post_status IN ({$states})
+    ", $product_id, $end_date, $start_date);
 
-		foreach ( $order->get_items() as $item ) {
-			if ( $item->get_product_id() == $product_id ) {
-				$booked_count += $item->get_quantity();
-			}
-		}
-	}
-	return $booked_count;
+	$total_booked = $wpdb->get_var($query);
+
+	return $total_booked ? (int) $total_booked : 0;
 }

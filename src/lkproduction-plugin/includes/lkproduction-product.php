@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/lkproduction-calendar.php';
+
 /**
  * Add a custom "Rental Stock" tab to the Product Data box
  */
@@ -48,4 +50,25 @@ add_action( 'woocommerce_process_product_meta', 'rental_save_tab_data' );
 function rental_save_tab_data( $product_id ) {
 	$rental_stock = isset( $_POST['_rental_total_stock'] ) ? $_POST['_rental_total_stock'] : '';
 	update_post_meta( $product_id, '_rental_total_stock', sanitize_text_field( $rental_stock ) );
+}
+
+/* availability on product page */
+add_action( 'add_meta_boxes', 'lk_add_rental_availability_metabox' );
+function lk_add_rental_availability_metabox() {
+	add_meta_box(
+		'lk_rental_availability_box',        // ID
+		'Kalendář obsazenosti',              // Title
+		'lk_render_rental_metabox_content',  // Callback
+		'product',                           // Post type
+		'normal',                            // Context (normal = main column, side = sidebar)
+		'high'                               // Priority
+	);
+}
+
+function lk_render_rental_metabox_content( $post ) {
+	?>
+	<div id="product-metabox-calendar-wrapper" style="min-height: 300px;">
+		<?php lk_rental_render_calendar($post->ID); ?>
+	</div>
+	<?php
 }
