@@ -41,7 +41,7 @@ function rental_editable_fields_in_general_section( $order ) {
             <input type="datetime-local" name="rental_end_date" id="rental_end_date" value="' . esc_attr( $end_formatted ) . '" />
           </p>';
 
-	echo '</div>';
+	echo '</div><br class="clear" />';
 }
 
 /**
@@ -97,8 +97,8 @@ function rental_admin_duration_placement_fix() {
 	<tr>
 		<td class="label">Počet dnů:</td>
 		<td width="1%"></td>
-		<td class="total">
-			<strong><?php echo $days ?></strong>
+		<td class="amount">
+			<?php echo $days ?>
 		</td>
 	</tr>
 	<?php
@@ -159,20 +159,41 @@ function rental_sortable_columns( $columns ) {
 
 // Logic to handle the sorting query
 add_action( 'pre_get_posts', 'rental_admin_order_orderby' );
-function rental_admin_order_orderby( $query ) {
-	if ( ! is_admin() || ! $query->is_main_query() || 'shop_order' !== $query->get( 'post_type' ) ) {
+function rental_admin_order_orderby($query) {
+	if (!is_admin() || !$query->is_main_query() || 'shop_order' !== $query->get( 'post_type')) {
 		return;
 	}
 
-	$orderby = $query->get( 'orderby' );
+	$orderby = $query->get('orderby');
 
-	if ( '_rental_start' === $orderby ) {
-		$query->set( 'meta_key', '_rental_start' );
-		$query->set( 'orderby', 'meta_value' );
+	if ('_rental_start' === $orderby) {
+		$query->set('meta_key', '_rental_start');
+		$query->set('orderby', 'meta_value');
 	}
 
-	if ( '_rental_end' === $orderby ) {
-		$query->set( 'meta_key', '_rental_end' );
-		$query->set( 'orderby', 'meta_value' );
+	if ('_rental_end' === $orderby) {
+		$query->set('meta_key', '_rental_end');
+		$query->set('orderby', 'meta_value');
+	}
+}
+
+/* Overbooking warning */
+add_action('woocommerce_admin_order_data_after_billing_address', 'rental_check_overbooking_warning');
+function rental_check_overbooking_warning($order) {
+	$start = $order->get_meta('_rental_start');
+	$end = $order->get_meta('_rental_end');
+
+	foreach ($order->get_items() as $item) {
+		$product_id = $item->get_product_id();
+		$total_owned = (int) get_post_meta( $product_id, '_rental_total_stock', true );
+		$already_booked = lk_get_booked_units($product_id, $start, $end);
+
+		if ( $already_booked > $total_owned ) {
+			echo '<div style="padding: 10px; background: #fbeaea; border-left: 4px solid #d63638; margin-top: 10px;">';
+			echo '<strong>⚠️ Překročena kapacita:</strong> ';
+			echo $item->get_name() . ' je zamluveno <strong>' . $already_booked . '</strong> kusů, ';
+			echo 'ale celkový počet je jen <strong>' . $total_owned . '</strong>.';
+			echo '</div>';
+		}
 	}
 }

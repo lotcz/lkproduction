@@ -16,8 +16,9 @@ if (!defined( 'ABSPATH')) {
 	exit;
 }
 
-require_once __DIR__ . '/includes/lkproduction-customer.php';
-require_once __DIR__ . '/includes/lkproduction-admin.php';
+require_once __DIR__ . '/includes/lkproduction-cart.php';
+require_once __DIR__ . '/includes/lkproduction-product.php';
+require_once __DIR__ . '/includes/lkproduction-order.php';
 
 /* STRINGS REPLACEMENTS */
 add_filter('gettext', 'rental_rename_subtotal_to_daily_fee', 20, 3);
@@ -45,5 +46,15 @@ function lkproduction_scripts() {
 		plugin_dir_url( __FILE__ ) . '/static/lkproduction.css',
 		[],
 		filemtime(plugin_dir_path(__FILE__) . '/static/lkproduction.css')
+	);
+}
+
+add_action('admin_enqueue_scripts', 'lkproduction_admin_scripts');
+function lkproduction_admin_scripts() {
+	wp_enqueue_style(
+		'lkproduction-style',
+		plugin_dir_url( __FILE__ ) . '/static/lkproduction-admin.css',
+		[],
+		filemtime(plugin_dir_path(__FILE__) . '/static/lkproduction-admin.css')
 	);
 }

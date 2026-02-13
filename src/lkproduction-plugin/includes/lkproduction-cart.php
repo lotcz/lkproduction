@@ -12,7 +12,7 @@ function rental_add_per_day_label( $price, $product ) {
 // Add Rental Fields to the Checkout Form
 add_action('woocommerce_before_checkout_billing_form', 'rental_global_fields');
 function rental_global_fields($checkout) {
-	echo '<div id="rental_global_details"><h3>Rezervace pronájmu</h3>';
+	echo '<div id="rental_global_details">';
 
 	woocommerce_form_field('rental_event_name', array(
 		'type' => 'text',
@@ -158,9 +158,9 @@ function rental_display_details_on_thank_you( $order ) {
 	$days = lk_order_get_total_days($order);
 
 	?>
-	<section class="woocommerce-rental-details" style="margin-bottom: 2em; padding: 20px; background: #fef9e7; border: 1px solid #f39c12; border-radius: 5px;">
-		<h2 class="woocommerce-column__title">Rezervace potvrzena</h2>
-		<table class="woocommerce-table woocommerce-table--rental-details shop_table">
+	<section class="lkproduction-rental-details">
+		<h2>Rezervace potvrzena</h2>
+		<table>
 			<tbody>
 			<tr>
 				<th><strong>Název akce:</strong></th>

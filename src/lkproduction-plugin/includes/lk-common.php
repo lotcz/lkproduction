@@ -81,3 +81,39 @@ function lk_order_get_total_days($order): float {
 function lk_order_get_total_price($order): float {
 	return lk_order_get_daily_price($order) * lk_order_get_total_days($order);
 }
+
+/* PRODUCT */
+
+/**
+ * Calculate how many units are already booked for a specific product and date range
+ */
+function lk_get_booked_units($product_id, $start_date, $end_date) {
+	global $wpdb;
+
+	// This query finds all orders that OVERLAP with the selected dates
+	// Logic: (StartA <= EndB) AND (EndA >= StartB)
+	$order_ids = $wpdb->get_col( $wpdb->prepare( "
+        SELECT post_id FROM {$wpdb->postmeta} 
+        WHERE meta_key = '_rental_start' 
+        AND meta_value <= %s
+        AND post_id IN (
+            SELECT post_id FROM {$wpdb->postmeta} 
+            WHERE meta_key = '_rental_end' 
+            AND meta_value >= %s
+        )
+    ", $end_date, $start_date ) );
+
+	$booked_count = 0;
+	foreach ( $order_ids as $id ) {
+		$order = wc_get_order( $id );
+		// Skip cancelled or failed orders
+		if ( in_array( $order->get_status(), ['cancelled', 'failed'] ) ) continue;
+
+		foreach ( $order->get_items() as $item ) {
+			if ( $item->get_product_id() == $product_id ) {
+				$booked_count += $item->get_quantity();
+			}
+		}
+	}
+	return $booked_count;
+}

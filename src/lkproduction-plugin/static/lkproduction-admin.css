@@ -1,0 +1,2 @@
+/* LK Rent tab icon in product detail */
+#woocommerce-product-data ul.wc-tabs li.rental_inventory_options a:before { content: "\f513"; }

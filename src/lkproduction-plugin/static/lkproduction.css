@@ -6,3 +6,23 @@
 	border-radius: 0;
 	transition: all .3s ease-in-out;
 }
+
+.lkproduction-rental-details {
+	border: solid 1px orange;
+	background-color: lightyellow;
+	padding: 10px;
+	border-radius: 5px;
+	text-align: left;
+}
+
+.lkproduction-rental-details h2 {
+	margin-top: 0 !important;
+}
+
+.lkproduction-rental-details th,
+.lkproduction-rental-details td {
+	line-height: 1.2;
+	padding: 10px !important;
+	border: none;
+	text-align: left;
+}
