@@ -103,3 +103,76 @@ function rental_admin_duration_placement_fix() {
 	</tr>
 	<?php
 }
+
+/**
+ * Add custom columns to the Orders list table
+ */
+add_filter( 'manage_edit-shop_order_columns', 'rental_add_admin_order_columns' );
+function rental_add_admin_order_columns( $columns ) {
+	$new_columns = array();
+
+	foreach ( $columns as $key => $column ) {
+		$new_columns[ $key ] = $column;
+		// Insert our columns right after the "Status" column
+		if ( 'order_status' === $key ) {
+			$new_columns['rental_event'] = 'Akce';
+			$new_columns['rental_start'] = 'Od';
+			$new_columns['rental_end']   = 'Do';
+		}
+	}
+
+	return $new_columns;
+}
+
+/**
+ * Populate the custom columns with metadata
+ */
+add_action( 'manage_shop_order_posts_custom_column', 'rental_populate_admin_order_columns' );
+function rental_populate_admin_order_columns( $column ) {
+	global $post;
+	$order = wc_get_order( $post->ID );
+
+	switch ( $column ) {
+		case 'rental_event':
+			echo esc_html( $order->get_meta( '_rental_event' ) ?: '—' );
+			break;
+
+		case 'rental_start':
+			echo esc_html(lk_datetime($order->get_meta( '_rental_start')));
+			break;
+
+		case 'rental_end':
+			echo esc_html(lk_datetime($order->get_meta( '_rental_end' )));
+			break;
+	}
+}
+
+/**
+ * Make the start date column sortable
+ */
+add_filter( 'manage_edit-shop_order_sortable_columns', 'rental_sortable_columns' );
+function rental_sortable_columns( $columns ) {
+	$columns['rental_start'] = '_rental_start';
+	$columns['rental_end'] = '_rental_end';
+	return $columns;
+}
+
+// Logic to handle the sorting query
+add_action( 'pre_get_posts', 'rental_admin_order_orderby' );
+function rental_admin_order_orderby( $query ) {
+	if ( ! is_admin() || ! $query->is_main_query() || 'shop_order' !== $query->get( 'post_type' ) ) {
+		return;
+	}
+
+	$orderby = $query->get( 'orderby' );
+
+	if ( '_rental_start' === $orderby ) {
+		$query->set( 'meta_key', '_rental_start' );
+		$query->set( 'orderby', 'meta_value' );
+	}
+
+	if ( '_rental_end' === $orderby ) {
+		$query->set( 'meta_key', '_rental_end' );
+		$query->set( 'orderby', 'meta_value' );
+	}
+}
