@@ -1,0 +1,6 @@
+.idea
+
+logs/
+docker/mysql
+src/wordpress
+

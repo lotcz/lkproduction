@@ -1,0 +1,54 @@
+POZOR!
+------
+
+- chyba při pokusu o editaci stránky! - např. https://lkproduction.cz/wp-admin/post.php?post=466&action=edit
+- používá se jen 6 z 24 pluginů
+
+ZMĚNY V THEME
+-----------
+
+functions.php - odebrat skrývání tlačítka Koupit
+style.css - odebrat štítek "/ den"
+
+PRYČ
+----
+
+- Envira Gallery - pryč, asi není potřeba
+- Image optimization service by Optimole - pryč, stejně nebylo zaplacené
+- Maps Widget for Google Maps - používá se widget z Elementor
+- Converter for Media - vypadá to, že nic nedělá
+- CPO Content Types - asi se nepoužívají
+- CPO Widgets - asi se nepoužívají
+- Page Builder by SiteOrigin - k ničemu
+- PHP Compatibility Checker
+- Smush Pro - stejně není zaplacené
+- YITH Request a Quote for WooCommerce - nebude třeba
+- WPCode Lite - You do not have permission to access this page.
+- WPForms Lite - stejně tam nejsou žádné formuláře
+- Google for WooCommerce - to je asi vhodné jen pro obchody, nikoli pro pronájmy
+
+DEAKTIVOVAT ALE PONECHAT
+------------------------
+
+- All-in-One WP Migration and Backup
+- UpdraftPlus - Backup/Restore
+- WP All Import
+- WP All Import - WooCommerce Add-On
+- Widget Importer & Exporter: někdo potřebuje importovat a exportovat widgety?
+
+PONECHAT
+--------
+
+- Autoptimize - optimalizace CSS a JS
+- Clean and Simple Contact Form - používá se na stránce kontakt
+- Sydney Toolbox - používá se na služby/zaměstnance/
+- Limit Login Attempts - bezpečnost
+- Page Builder by SiteOrigin -
+- SiteOrigin Widgets Bundle - titulní stránka
+- Custom Facebook Feed Pro Personal - na titulní stránce
+- Yoast SEO - aktualizovat a konfigurovat
+
+PŘIDAT
+------
+
+-

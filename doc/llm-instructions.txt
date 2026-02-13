@@ -1,0 +1,13 @@
+Create a booking plugin for Wordpress with Woocommerce.
+Plugin will be used by rental agency that rents sound equipment.
+Use Woocommerce products and orders as base for data.
+
+Extend order by adding inputs for date and time of start and end of the rental and also name of the event that equipment will be at.
+Add calculation to order total price - must be price of products times rental days.
+Add start date, end date, event name and total rent calculation to cart, checkout and order pages.
+
+In checkout, for cart items only add "per day" label, then calculate price for all items per one day and only then multiply by number of days and that will be the final total price of rental.
+
+Add calendar to admin area showing upcoming events with booked rentals.
+Also on product detail add calendar showing when the item is booked.
+System will allow overbooking, but admin must be aware of that by seeing negative number as available count for that day.

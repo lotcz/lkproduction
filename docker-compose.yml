@@ -1,0 +1,68 @@
+services:
+
+  db:
+    image: mariadb:12.0.2-ubi10
+    container_name: lkproduction-mysql
+    command: '--default-authentication-plugin=mysql_native_password'
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=lkproduction
+      - MYSQL_USER=lkproduction
+      - MYSQL_PASSWORD=lkproduction
+    ports:
+      - 3383:3306
+    volumes:
+      - ./docker/mysql/data/:/var/lib/mysql/
+
+  ftp:
+    image: delfer/alpine-ftp-server
+    container_name: lkproduction-ftp
+    volumes:
+      - ./src/wordpress:/var/www/html
+    environment:
+      - USERS=ftp1|ftp1234|/var/www/html
+      - ADDRESS=ftp
+    ports:
+      - "21:21"
+      - "21000-21010:21000-21010"
+
+  nginx:
+    image: nginx:alpine
+    container_name: lkproduction-nginx
+    volumes:
+      - ./src/:/var/www/
+      - ../woo-karel:/var/www/woo-karel
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - php
+
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lkproduction-php
+    volumes:
+      - ./src/:/var/www/
+      - ./logs/:/var/log/wordpress
+      - ../woo-karel:/var/www/woo-karel
+      - ./docker/php-my.ini:/usr/local/etc/php/conf.d/php-my.ini
+    working_dir: /var/www/wordpress
+    entrypoint: >
+      sh -c "
+        ln -sfn /var/www/lkproduction-plugin /var/www/wordpress/wp-content/plugins/lkproduction-plugin &&
+        ln -sfn /var/www/woo-karel/plugins/wk-categories-blocks/build /var/www/wordpress/wp-content/plugins/wk-categories-blocks &&
+        ln -sf /var/log/wordpress/debug.log /var/www/wordpress/wp-content/debug.log &&
+        chown www-data:www-data -R /var/www/wordpress &&
+        chmod a+rwx -R /var/www/wordpress -R &&
+        chown www-data:www-data -R /var/log/wordpress &&
+        chmod a+rwx -R /var/log/wordpress -R &&
+        php-fpm
+      "
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      - "lkproduction.loc:host-gateway"
+    depends_on:
+      - db
+      - ftp

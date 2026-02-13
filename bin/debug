@@ -1,0 +1,2 @@
+# run this inside WSL
+docker compose up

@@ -1,0 +1,105 @@
+<?php
+
+require_once __DIR__ . '/lk-common.php';
+
+/**
+ * Inject editable rental fields directly into the WooCommerce Order "General" section
+ */
+add_action( 'woocommerce_admin_order_data_after_order_details', 'rental_editable_fields_in_general_section' );
+
+function rental_editable_fields_in_general_section( $order ) {
+	// Get existing values
+	$event = $order->get_meta( '_rental_event' );
+	$start = $order->get_meta( '_rental_start' );
+	$end   = $order->get_meta( '_rental_end' );
+
+	// Ensure the datetime-local format is correct for the input (YYYY-MM-DDTHH:MM)
+	$start_formatted = $start ? date( 'Y-m-d\TH:i', strtotime( $start ) ) : '';
+	$end_formatted   = $end ? date( 'Y-m-d\TH:i', strtotime( $end ) ) : '';
+
+	echo '<br class="clear" />';
+	echo '<h3>' . __( 'Detail rezervace', 'lkproduction-plugin' ) . '</h3>';
+	echo '<div class="edit_rental">';
+
+	// Event Name
+	woocommerce_wp_text_input( array(
+		'id'            => 'rental_event_name',
+		'label'         => __( 'Akce:', 'lkproduction-plugin' ),
+		'value'         => $event,
+		'wrapper_class' => 'form-field-wide',
+	) );
+
+	// Start Date & Time
+	echo '<p class="form-field form-field-wide">
+            <label for="rental_start_date">' . __( 'Od:', 'lkproduction-plugin' ) . '</label>
+            <input type="datetime-local" name="rental_start_date" id="rental_start_date" value="' . esc_attr( $start_formatted ) . '" />
+          </p>';
+
+	// End Date & Time
+	echo '<p class="form-field form-field-wide">
+            <label for="rental_end_date">' . __( 'Do:', 'lkproduction-plugin' ) . '</label>
+            <input type="datetime-local" name="rental_end_date" id="rental_end_date" value="' . esc_attr( $end_formatted ) . '" />
+          </p>';
+
+	echo '</div>';
+}
+
+/**
+ * Save the rental fields when the Order is saved/updated in admin
+ */
+add_action('woocommerce_process_shop_order_meta', 'rental_save_general_section_fields');
+function rental_save_general_section_fields($order_id) {
+	$order = wc_get_order($order_id);
+	$old_days = lk_order_get_total_days($order);
+
+	if ( isset( $_POST['rental_event_name'] ) ) {
+		$order->update_meta_data( '_rental_event', sanitize_text_field( $_POST['rental_event_name'] ) );
+	}
+
+	if ( isset( $_POST['rental_start_date'] ) ) {
+		$order->update_meta_data( '_rental_start', sanitize_text_field( $_POST['rental_start_date'] ) );
+	}
+
+	if ( isset( $_POST['rental_end_date'] ) ) {
+		$order->update_meta_data( '_rental_end', sanitize_text_field( $_POST['rental_end_date'] ) );
+	}
+
+	$order->save();
+
+	$days = lk_order_get_total_days($order);
+	if ($old_days !== $days) {
+		$price = lk_order_get_total_price($order);
+		$order->set_total($price);
+		$order->save();
+		$order->add_order_note(sprintf( __( 'Cena objednávky přepočítána na %.0f,- pro nový počet dnů: %d', 'lk-production-plugin' ), $price, $days));
+		update_post_meta( $order_id, '_order_total', $price );
+	}
+}
+
+// total order price
+add_filter( 'woocommerce_order_get_total', 'rental_order_total_filter', 10, 2);
+function rental_order_total_filter($total, $order) {
+	return lk_order_get_total_price($order);
+}
+
+add_action( 'woocommerce_admin_order_totals_after_tax', 'rental_admin_duration_placement_fix' );
+function rental_admin_duration_placement_fix() {
+	global $post;
+
+	// Safety check for the order ID
+	$order_id = $post->ID;
+	if (!$order_id ) return;
+
+	$order = wc_get_order( $order_id );
+	$days = lk_order_get_total_days($order);
+
+	?>
+	<tr>
+		<td class="label">Počet dnů:</td>
+		<td width="1%"></td>
+		<td class="total">
+			<strong><?php echo $days ?></strong>
+		</td>
+	</tr>
+	<?php
+}
