@@ -19,7 +19,7 @@ if (!defined( 'ABSPATH')) {
 require_once __DIR__ . '/includes/lkproduction-customer.php';
 require_once __DIR__ . '/includes/lkproduction-admin.php';
 
-
+/* STRINGS REPLACEMENTS */
 add_filter('gettext', 'rental_rename_subtotal_to_daily_fee', 20, 3);
 function rental_rename_subtotal_to_daily_fee($translated_text, $text, $domain) {
 	if ($domain === 'woocommerce') {
@@ -35,4 +35,15 @@ function rental_rename_subtotal_to_daily_fee($translated_text, $text, $domain) {
 		}
 	}
 	return $translated_text;
+}
+
+/* CUSTOM STYLES AND SCRIPTS */
+add_action('wp_enqueue_scripts', 'lkproduction_scripts');
+function lkproduction_scripts() {
+	wp_enqueue_style(
+		'lkproduction-style',
+		plugin_dir_url( __FILE__ ) . '/static/lkproduction.css',
+		[],
+		filemtime(plugin_dir_path(__FILE__) . '/static/lkproduction.css')
+	);
 }

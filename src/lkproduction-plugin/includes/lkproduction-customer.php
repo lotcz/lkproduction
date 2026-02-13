@@ -155,7 +155,7 @@ function rental_display_details_on_thank_you( $order ) {
 	// If no rental data exists, don't show the box
 	if ( ! $start || ! $end ) return;
 
-	$days  = lk_order_get_total_days($order);
+	$days = lk_order_get_total_days($order);
 
 	?>
 	<section class="woocommerce-rental-details" style="margin-bottom: 2em; padding: 20px; background: #fef9e7; border: 1px solid #f39c12; border-radius: 5px;">
