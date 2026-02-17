@@ -26,3 +26,23 @@
 	border: none;
 	text-align: left;
 }
+
+.woocommerce-shipping-totals.shipping {
+	display: none;
+}
+
+.collapsible-categories-menu {
+	width: 100%;
+}
+
+.collapsible-categories-menu a {
+	color: white !important;
+}
+
+.widget-area .widget .collapsible-categories-menu li {
+	padding: 0;
+}
+
+.widget-area .widget.widget_search {
+	margin-bottom: 10px !important;
+}

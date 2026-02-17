@@ -94,6 +94,7 @@ add_action('wp_ajax_get_rental_calendar_events', function() {
 // Render the Page
 function lk_rental_render_calendar($product_id = null) {
 	?>
+	<div class="clear"></div>
 	<div class="wrap">
 		<div id="rental-calendar-global" style="background: #fff; padding: 20px; border: 1px solid #ccd0d4; margin-top: 20px;"></div>
 	</div>

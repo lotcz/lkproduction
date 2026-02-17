@@ -30,10 +30,16 @@ function rental_rename_subtotal_to_daily_fee($translated_text, $text, $domain) {
 			case 'Estimated total':
 			case 'Items Subtotal':
 				return 'Denní sazba';
-			case 'Proceed to Checkout':
+			case 'Proceed to checkout':
 				return 'Rezervovat';
 			case 'Add to Cart':
 				return 'Přidat k rezervaci';
+		}
+	}
+	if ($domain === 'sydney') {
+		switch ($text) {
+			case 'Proceed to checkout':
+				return 'Rezervovat';
 		}
 	}
 	return $translated_text;
@@ -54,11 +60,16 @@ function lkproduction_scripts() {
 add_action('admin_enqueue_scripts', 'lkproduction_admin_scripts');
 function lkproduction_admin_scripts() {
 	wp_enqueue_style(
-		'lkproduction-style',
+		'lkproduction-admin-style',
 		plugin_dir_url( __FILE__ ) . '/static/lkproduction-admin.css',
 		[],
 		filemtime(plugin_dir_path(__FILE__) . '/static/lkproduction-admin.css')
 	);
+}
+
+function lk_rental_render_calendar_global() {
+	echo '<h1>Kalendář akcí</h1>';
+	lk_rental_render_calendar();
 }
 
 // Add Menu Item
@@ -75,11 +86,6 @@ function rental_calendar_menu() {
 	);
 }
 
-function lk_rental_render_calendar_global() {
-	echo '<h1>Kalendář akcí</h1>';
-	lk_rental_render_calendar();
-}
-
 add_action('admin_menu', 'rental_calendar_submenu_links', 20);
 function rental_calendar_submenu_links() {
 	add_submenu_page(
@@ -88,7 +94,7 @@ function rental_calendar_submenu_links() {
 		'Kalendář akcí',
 		'manage_options',
 		'rental-calendar',
-		'rental_calendar_render_page'
+		'lk_rental_render_calendar_global'
 	);
 
 	add_submenu_page(
