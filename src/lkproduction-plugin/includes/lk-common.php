@@ -57,6 +57,35 @@ function lk_cart_get_total_price(): float {
 
 /* ORDER */
 
+const LK_ORDER_STATE_QUOTE = 'quote';
+const LK_ORDER_EVENT_NAME_META = '_rental_event';
+const LK_ORDER_START_DATE_META = '_rental_start';
+const LK_ORDER_END_DATE_META = '_rental_end';
+
+function lk_order_set_event_name($order, $event_name) {
+	$order->update_meta_data(LK_ORDER_EVENT_NAME_META, $event_name);
+}
+
+function lk_order_get_event_name($order) {
+	return $order->get_meta(LK_ORDER_EVENT_NAME_META);
+}
+
+function lk_order_set_start_date($order, $date) {
+	$order->update_meta_data(LK_ORDER_START_DATE_META, $date);
+}
+
+function lk_order_get_start_date($order) {
+	return $order->get_meta(LK_ORDER_START_DATE_META);
+}
+
+function lk_order_set_end_date($order, $date) {
+	$order->update_meta_data(LK_ORDER_END_DATE_META, $date);
+}
+
+function lk_order_get_end_date($order) {
+	return $order->get_meta(LK_ORDER_END_DATE_META);
+}
+
 function lk_get_valid_order_states(): array {
 	return ['wc-pending', 'wc-processing', 'wc-completed', 'wc-on-hold'];
 }
@@ -83,7 +112,7 @@ function lk_order_get_daily_price_by_id($order_id): float {
 }
 
 function lk_order_get_total_days($order): float {
-	return lk_get_total_days($order->get_meta('_rental_start'), $order->get_meta('_rental_end'));
+	return lk_get_total_days(lk_order_get_start_date($order), lk_order_get_end_date($order));
 }
 
 function lk_order_get_total_price($order): float {
@@ -92,10 +121,18 @@ function lk_order_get_total_price($order): float {
 
 /* PRODUCT */
 
-function lk_get_total_owned($product_id) {
-	return (int) get_post_meta( $product_id, '_rental_total_stock', true );
+const LK_PRODUCT_TOTAL_STOCK_META = '_rental_total_stock';
+
+function lk_set_product_total_stock($product_id, $stock) {
+	update_post_meta($product_id, LK_PRODUCT_TOTAL_STOCK_META, (int)$stock);
 }
 
+/* Get total owned amount of certain product */
+function lk_get_product_total_stock($product_id) {
+	return (int) get_post_meta($product_id, LK_PRODUCT_TOTAL_STOCK_META, true);
+}
+
+/* Get total booked amount of certain product inside certain period */
 function lk_get_booked_units($product_id, $start_date, $end_date) {
 	global $wpdb;
 
@@ -122,13 +159,13 @@ function lk_get_booked_units($product_id, $start_date, $end_date) {
         WHERE item_meta_product.meta_key = '_product_id' 
             AND item_meta_product.meta_value = %d
             AND item_meta_qty.meta_key = '_qty'
-            AND meta_start.meta_key = '_rental_start'
-            AND meta_end.meta_key = '_rental_end'
+            AND meta_start.meta_key = %s
+            AND meta_end.meta_key = %s
             -- Date Overlap Logic: (StartA <= EndB) AND (EndA >= StartB)
             AND meta_start.meta_value <= %s
             AND meta_end.meta_value >= %s
             AND posts.post_status IN ({$states})
-    ", $product_id, $end_date, $start_date);
+    ", $product_id, LK_ORDER_START_DATE_META, LK_ORDER_END_DATE_META, $end_date, $start_date);
 
 	$total_booked = $wpdb->get_var($query);
 

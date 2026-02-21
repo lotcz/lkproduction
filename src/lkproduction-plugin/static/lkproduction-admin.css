@@ -4,3 +4,90 @@
 #rental-calendar-global .notice {
 	display: none;
 }
+
+.popup-link-container > * {
+	display: inline-block;
+}
+
+.popup-link-container .popup-link {
+	display: inline-block;
+	visibility: hidden;
+	background-image: url('../static/popup-link.svg');
+	background-repeat: no-repeat;
+	background-position: center;
+	background-size: contain;
+	height: 1em;
+	width: 1em;
+}
+
+.popup-link-container:hover .popup-link {
+	visibility: visible;
+	text-decoration: none;
+}
+
+/* CUSTOM ORDERS */
+
+.lk-custom-order-form .form-cols {
+	display: flex;
+	flex-direction: row;
+	align-items: start;
+	gap: 1rem;
+}
+
+.lk-custom-order-form form .static-value {
+	font-weight: bold;
+}
+
+.lk-custom-order-form form label {
+	display: block;
+	font-size: 85%;
+	margin-top: 0.5rem;
+}
+
+.lk-order-products-table {
+	margin-top: 1rem;
+}
+
+.lk-order-products-table thead {
+	position: sticky;
+	top: 32px;
+	background: #f0f0f1;
+}
+
+.lk-order-products-table th {
+	text-align: left;
+	font-weight: bold;
+}
+
+.lk-order-products-table td {
+	border-bottom: 1px solid #ddd;
+	margin-right: 2px;
+}
+
+.lk-order-products-table td.price,
+.lk-order-products-table td.stock {
+	text-align: right;
+}
+
+.lk-order-products-table td.qty input {
+	width: 4rem;
+}
+
+.lk-custom-order-form .button {
+	margin-top: 0.5rem;
+}
+
+.lk-order-products-table tr.used td.price.total,
+.lk-order-products-table tr.overbooked.used td.stock {
+	font-weight: bold;
+}
+
+.lk-order-products-table tr.overbooked td.stock {
+	color: red;
+}
+
+.lk-custom-order-form .form-footer {
+	position: sticky;
+	bottom: 0;
+	background: #f0f0f1;
+}

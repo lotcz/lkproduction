@@ -61,22 +61,22 @@ function rental_global_fields($checkout) {
 add_action( 'woocommerce_checkout_process', 'rental_validate_checkout_fields' );
 function rental_validate_checkout_fields() {
 	// Check if Event Name is empty
-	if ( empty( $_POST['rental_event_name'] ) ) {
+	if (empty($_POST['rental_event_name'])) {
 		wc_add_notice( __( 'Vložte prosím název akce, pro kterou si techniku pronajímáte.' ), 'error' );
 	}
 
 	// Check if Start Date is empty
-	if ( empty( $_POST['rental_start_date'] ) ) {
+	if (empty($_POST['rental_start_date'])) {
 		wc_add_notice( __( 'Vyberte prosím datum začátku pronájmu.' ), 'error' );
 	}
 
 	// Check if End Date is empty
-	if ( empty( $_POST['rental_end_date'] ) ) {
+	if (empty($_POST['rental_end_date'])) {
 		wc_add_notice( __( 'Vyberte prosím datum konce pronájmu.' ), 'error' );
 	}
 
 	// Logical Validation: Ensure End Date is after Start Date
-	if (!empty( $_POST['rental_start_date']) && !empty($_POST['rental_end_date'])) {
+	if (!empty($_POST['rental_start_date']) && !empty($_POST['rental_end_date'])) {
 		$start = strtotime( $_POST['rental_start_date'] );
 		$end = strtotime( $_POST['rental_end_date'] );
 
