@@ -18,6 +18,11 @@ function lkToggleClass(el, css, active) {
 	}
 }
 
+function lkFormatMoney (value) {
+	if (isNaN(value)) return '--';
+	return value.toLocaleString('cs-CZ', {style: 'currency', currency: 'CZK', maximumFractionDigits: 0});
+}
+
 window.addEventListener(
 	'load',
 	() => {
@@ -25,11 +30,6 @@ window.addEventListener(
 		const start_date = form.querySelector('#start_date');
 		const end_date = form.querySelector('#end_date');
 		const rows = document.querySelectorAll('.lk-order-products-table .product-row');
-
-		const formatMoney = (value) => {
-			if (isNaN(value)) return '--';
-			return value.toLocaleString('cs-CZ', {style: 'currency', currency: 'CZK', maximumFractionDigits: 0});
-		}
 
 		const getFormTotalDays = () => {
 			const start = new Date(start_date.value).getTime();
@@ -53,8 +53,13 @@ window.addEventListener(
 
 		const getRowTotal = (row) => getRowDaily(row) * getFormTotalDays();
 
-		const getRowStock = (row) => {
-			const n = parseInt(row.dataset.stock);
+		const getRowTotalStock = (row) => {
+			const n = parseInt(row.dataset.stock_total);
+			return isNaN(n) ? 0 : n;
+		}
+
+		const getRowBookedStock = (row) => {
+			const n = parseInt(row.dataset.stock_booked);
 			return isNaN(n) ? 0 : n;
 		}
 
@@ -69,19 +74,19 @@ window.addEventListener(
 
 		const updateFormTotal = () => {
 			const total = getFormTotal();
-			form.querySelector('#total_order_price').innerText = formatMoney(total);
+			form.querySelector('#total_order_price').innerText = lkFormatMoney(total);
 		}
 
 		const updateRowTotal = (row) => {
 			const total = getRowTotal(row);
-			row.querySelector('.total').innerText = formatMoney(total);
-			updateFormTotal();
+			row.querySelector('.total').innerText = lkFormatMoney(total);
 		}
 
 		const updateRowStock = (row) => {
-			const totalStock = getRowStock(row);
+			const totalStock = getRowTotalStock(row);
+			const bookedStock = getRowBookedStock(row);
 			const qty = getRowQty(row);
-			const stock = totalStock - qty;
+			const stock = totalStock - (bookedStock + qty);
 
 			row.querySelector('.stock').innerText = stock;
 
@@ -89,14 +94,31 @@ window.addEventListener(
 			lkToggleClass(row, 'overbooked', stock < 0);
 
 			updateRowTotal(row);
+			updateFormTotal();
 		}
 
-		const updateRows = () => rows.forEach(updateRowStock);
+		const updateRows = () => rows.forEach(
+			(row) => {
+				updateRowStock(row);
+				updateFormTotal();
+			}
+		);
 
 		const updateFormDays = () => {
 			form.querySelector('#total_days').innerText = getFormTotalDays();
 			updateFormTotal();
 			updateRows();
+		}
+
+		const saveForm = (e) => {
+			const items = [];
+			rows.forEach(
+				(row) => {
+					const qty = getRowQty(row);
+					if (qty > 0) items.push({id: parseInt(row.dataset.product_id), qty: qty});
+				}
+			);
+			form.items.value = JSON.stringify(items);
 		}
 
 		// register events
@@ -110,6 +132,8 @@ window.addEventListener(
 				qty.addEventListener('change', (e) => updateRowStock(row));
 			}
 		);
-
+		form.addEventListener('submit', saveForm);
+		const saveButton = document.querySelector('.lk-custom-order-form button[type=submit]');
+		saveButton.addEventListener('click', () => form.requestSubmit());
 	}
 );

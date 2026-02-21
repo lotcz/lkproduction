@@ -24,10 +24,9 @@ add_filter('wc_order_statuses', function ($statuses) {
 });
 
 /* Load all public products sorted by category [category => {id, title, desc, price, stock}] */
-function lk_get_all_public_woocommerce_products() {
+function lk_get_all_public_woocommerce_products(): array {
 	global $wpdb;
 
-	// One query to rule them all: joins posts, terms, and our specific meta field
 	$results = $wpdb->get_results(
 		$wpdb->prepare("
 			SELECT 
@@ -54,6 +53,7 @@ function lk_get_all_public_woocommerce_products() {
 	if (empty($results)) return array();
 
 	$grouped = array();
+	$added = [];
 
 	foreach ($results as $row) {
 		// Since a product can have multiple categories, we check if we've added it
@@ -62,65 +62,34 @@ function lk_get_all_public_woocommerce_products() {
 			$grouped[$row->category_name] = array();
 		}
 
-		$grouped[$row->category_name][] = array(
-			'id' => $row->ID,
-			'title' => $row->post_title,
-			'desc' => $row->short_description,
-			'price' => $row->price,
-			'stock' => $row->rental_stock ?: 0,
-			// Only fetch the full object if you absolutely need a method like ->get_price()
-			// 'product' => wc_get_product($row->ID)
-		);
+		if (!isset($added[$row->ID])) {
+			$grouped[$row->category_name][] = array(
+				'product_id' => $row->ID,
+				'title' => $row->post_title,
+				'desc' => $row->short_description,
+				'price' => $row->price ?: 0,
+				'stock' => $row->rental_stock ?: 0
+			);
+		}
+		$added[$row->ID] = true;
 	}
 
 	return $grouped;
 }
 
-/* Return list of all booked products for certain period */
-function lk_get_booked_products($start_date, $end_date) {
-	global $wpdb;
-
-	$states = lk_get_valid_order_states_sql();
-
-	$query = $wpdb->prepare("
-        SELECT SUM(item_meta_qty.meta_value) 
-        FROM {$wpdb->prefix}woocommerce_order_items AS items
-        -- Join to get the Product ID for each line item
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS item_meta_product 
-            ON items.order_item_id = item_meta_product.order_item_id
-        -- Join to get the Quantity for each line item
-        INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS item_meta_qty 
-            ON items.order_item_id = item_meta_qty.order_item_id
-        -- Join to Order Meta for Rental Start Date
-        INNER JOIN {$wpdb->postmeta} AS meta_start 
-            ON items.order_id = meta_start.post_id
-        -- Join to Order Meta for Rental End Date
-        INNER JOIN {$wpdb->postmeta} AS meta_end 
-            ON items.order_id = meta_end.post_id
-        -- Join to Posts to check Order Status
-        INNER JOIN {$wpdb->posts} AS posts 
-            ON items.order_id = posts.ID
-        WHERE item_meta_product.meta_key = '_product_id' 
-            AND item_meta_product.meta_value = %d
-            AND item_meta_qty.meta_key = '_qty'
-            AND meta_start.meta_key = '_rental_start'
-            AND meta_end.meta_key = '_rental_end'
-            -- Date Overlap Logic: (StartA <= EndB) AND (EndA >= StartB)
-            AND meta_start.meta_value <= %s
-            AND meta_end.meta_value >= %s
-            AND posts.post_status IN ({$states})
-    ", $end_date, $start_date);
-
-	$total_booked = $wpdb->get_var($query);
-
-	return $total_booked ? (int)$total_booked : 0;
-}
-
 /* Get list of all public products with information about availability for certain period */
-function lk_get_public_products($view_start = null, $view_end = null) {
-	$products = lk_get_all_public_woocommerce_products();
-// todo: fill booked information
-	return $products;
+function lk_get_public_products($view_start = null, $view_end = null, $exclude_order_id = null): array {
+	$categories = lk_get_all_public_woocommerce_products();
+	$usage = ($view_start && $view_end) ? lk_get_booked_products($view_start, $view_end, $exclude_order_id) : [];
+
+	foreach ($categories as &$products) {
+		foreach ($products as &$product) {
+			$booked = $usage[$product['product_id']] ?? 0;
+			$product['booked'] = $booked;
+		}
+	}
+
+	return $categories;
 }
 
 function lk_save_order($order_id = null, $event_name = null, $start_date = null, $end_date = null, $status = LK_ORDER_STATE_QUOTE, $items = []) {
@@ -130,10 +99,12 @@ function lk_save_order($order_id = null, $event_name = null, $start_date = null,
 	lk_order_set_start_date($order, $start_date);
 	lk_order_set_end_date($order, $end_date);
 
+	$order->remove_order_items();
+
 	foreach ($items as $item) {
-		$qty = absint($item['quantity'] ?? 1);
+		$qty = absint($item->qty);
 		if (!$qty) continue;
-		$product = wc_get_product(absint($item['product_id']));
+		$product = wc_get_product(absint($item->id));
 		if (!$product) continue;
 		$order->add_product($product, $qty);
 	}
@@ -165,7 +136,10 @@ function lk_rental_render_custom_order_form() {
 		$end_date = isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : null;
 		$status = isset($_POST['order_state']) ? sanitize_text_field($_POST['order_state']) : null;
 
-		$order = lk_save_order($order_id, $event_name, $start_date, $end_date, $status);
+		$itemsJson = isset($_POST['items']) ? stripslashes_deep($_POST['items']) : '[]';
+		$items = json_decode($itemsJson);
+
+		$order = lk_save_order($order_id, $event_name, $start_date, $end_date, $status, $items);
 
 		if (empty($order_id)) {
 			wp_redirect(admin_url('admin.php?page=lk-rental-custom-order-form&order_id=' . $order->get_id()));
@@ -185,7 +159,18 @@ function lk_rental_render_custom_order_form() {
 		$edit_url = $order->get_edit_order_url();
 	}
 
-	$all_products = lk_get_public_products();
+	$all_products = lk_get_public_products($start_date, $end_date, $order_id);
+
+	$order_items = [];
+	if ($order) {
+		$oi = $order->get_items();
+		foreach ($oi as $item) {
+			$product_id = $item->get_product_id();
+			$quantity = $item->get_quantity();
+			$order_items[$product_id] = $quantity;
+		}
+	}
+
 	$heading = $order ? (($status === LK_ORDER_STATE_QUOTE) ? "Cenová nabídka" : "Objednávka") : "Vytvořit cenovou nabídku";
 
 	?>
@@ -204,6 +189,7 @@ function lk_rental_render_custom_order_form() {
 		</div>
 		<div class="lk-custom-order-form">
 			<form method="post" action="">
+				<input type="hidden" name="items" value="" />
 				<div class="form-cols">
 					<div class="form-col">
 						<div>
@@ -278,22 +264,28 @@ function lk_rental_render_custom_order_form() {
 					<tbody>
 					<?php
 					foreach ($all_products as $category_name => $products) {
+						if (empty($products)) continue;
+
 						echo '<tr><td colspan="6"><h2>' . esc_html($category_name) . '</h2></td></tr>';
 
 						foreach ($products as $product) {
-							$id = $product['id'];
+							$id = $product['product_id'];
 							$name = $product['title'];
 							$desc = $product['desc'];
 							$price = $product['price'];
 							$stock = $product['stock'];
+							$booked = $product['booked'];
+							$qty = $order_items[$id] ?? 0;
+							$stockCurrent = $stock - ($booked + $qty);
+							$total = $price * $qty;
 							$link = admin_url("post.php?post=$id&action=edit");
 							?>
 							<tr
-								class="product-row"
-								data-product-id="<?php echo $id ?>"
+								class="product-row <?php echo $stockCurrent < 0 ? 'overbooked' : ''?> <?php echo $qty > 0 ? 'used' : ''?>"
+								data-product_id="<?php echo $id ?>"
 								data-price="<?php echo $price ?>"
-								data-stock="<?php echo $stock ?>"
-								data-stock-usage="<?php echo $stock ?>"
+								data-stock_total="<?php echo $stock ?>"
+								data-stock_booked="<?php echo $booked ?>"
 							>
 								<td>
 									<div class="popup-link-container">
@@ -302,10 +294,10 @@ function lk_rental_render_custom_order_form() {
 									</div>
 								</td>
 								<td><?php echo $desc ?></td>
-								<td class="qty"><input type="number" name="product_qty" value="0" min="0"/></td>
+								<td class="qty"><input type="number" name="product_qty" value="<?php echo $qty?>" min="0"/></td>
 								<td class="price"><?php echo wc_price($price) ?></td>
-								<td class="price total">0 Kč</td>
-								<td class="stock"><?php echo $stock ?></td>
+								<td class="price total"><?php echo $total?> Kč</td>
+								<td class="stock"><?php echo $stockCurrent ?></td>
 							</tr>
 							<?php
 						}

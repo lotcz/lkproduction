@@ -24,7 +24,8 @@ function lk_get_total_days($start, $end): int {
 	try {
 		$date1 = new DateTime($start);
 		$date2 = new DateTime($end);
-		$diff = (int)$date1->diff($date2)->format("%r%a");
+		$seconds = $date2->getTimestamp() - $date1->getTimestamp();
+		$diff = (int)ceil($seconds/(60*60*24));
 		return ($diff <= 1) ? 1 : $diff;
 	} catch (Exception $e) {
 		error_log("Error when calculating days: " . $e->getMessage());
@@ -132,42 +133,72 @@ function lk_get_product_total_stock($product_id) {
 	return (int) get_post_meta($product_id, LK_PRODUCT_TOTAL_STOCK_META, true);
 }
 
-/* Get total booked amount of certain product inside certain period */
-function lk_get_booked_units($product_id, $start_date, $end_date) {
+
+/* Return list of all booked products for certain period */
+function lk_get_booked_products($start_date, $end_date, $exclude_order_id = null, $product_id = null): array {
 	global $wpdb;
 
 	$states = lk_get_valid_order_states_sql();
 
 	$query = $wpdb->prepare("
-        SELECT SUM(item_meta_qty.meta_value) 
+        SELECT item_meta_product.meta_value AS product_id, 
+        	item_meta_qty.meta_value AS quantity, 
+        	meta_start.meta_value AS start_date,
+            meta_end.meta_value AS end_date
         FROM {$wpdb->prefix}woocommerce_order_items AS items
-        -- Join to get the Product ID for each line item
         INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS item_meta_product 
-            ON items.order_item_id = item_meta_product.order_item_id
-        -- Join to get the Quantity for each line item
+            ON (items.order_item_id = item_meta_product.order_item_id AND item_meta_product.meta_key = '_product_id')
         INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta AS item_meta_qty 
-            ON items.order_item_id = item_meta_qty.order_item_id
-        -- Join to Order Meta for Rental Start Date
-        INNER JOIN {$wpdb->postmeta} AS meta_start 
-            ON items.order_id = meta_start.post_id
-        -- Join to Order Meta for Rental End Date
-        INNER JOIN {$wpdb->postmeta} AS meta_end 
-            ON items.order_id = meta_end.post_id
-        -- Join to Posts to check Order Status
-        INNER JOIN {$wpdb->posts} AS posts 
-            ON items.order_id = posts.ID
-        WHERE item_meta_product.meta_key = '_product_id' 
-            AND item_meta_product.meta_value = %d
-            AND item_meta_qty.meta_key = '_qty'
-            AND meta_start.meta_key = %s
+            ON (items.order_item_id = item_meta_qty.order_item_id AND item_meta_qty.meta_key = '_qty')
+        INNER JOIN {$wpdb->postmeta} AS meta_start ON items.order_id = meta_start.post_id
+        INNER JOIN {$wpdb->postmeta} AS meta_end ON items.order_id = meta_end.post_id
+        INNER JOIN {$wpdb->posts} AS posts ON items.order_id = posts.ID
+        WHERE meta_start.meta_key = %s
             AND meta_end.meta_key = %s
-            -- Date Overlap Logic: (StartA <= EndB) AND (EndA >= StartB)
             AND meta_start.meta_value <= %s
             AND meta_end.meta_value >= %s
             AND posts.post_status IN ({$states})
-    ", $product_id, LK_ORDER_START_DATE_META, LK_ORDER_END_DATE_META, $end_date, $start_date);
+           
+    ", LK_ORDER_START_DATE_META, LK_ORDER_END_DATE_META, $end_date, $start_date);
 
-	$total_booked = $wpdb->get_var($query);
+	if ($product_id) {
+		$query .= $wpdb->prepare(" AND item_meta_product.meta_value = %s", (string)$product_id);
+	}
 
-	return $total_booked ? (int) $total_booked : 0;
+	if ($exclude_order_id) {
+		$query .= $wpdb->prepare(" AND NOT items.order_id = %d", $exclude_order_id);
+	}
+
+	error_log($query);
+
+	$items = $wpdb->get_results($query);
+
+	//aggregate by product
+	$aggregated = array();
+
+	foreach ($items as $item) {
+		$id = $item->product_id;
+		if (isset($aggregated[$id])) {
+			$existing = $aggregated[$id];
+			$sum = 0;
+			foreach ($items as $alt) {
+				if ($alt->product_id == $id) {
+					if ($alt->start_date <= $item->end_date && $alt->end_date >= $item->start_date) {
+						$sum += $alt->quantity;
+					}
+				}
+			}
+			if ($sum > $existing) $aggregated[$id] = $sum;
+		} else {
+			$aggregated[$id] = $item->quantity;
+		}
+	}
+
+	return $aggregated;
+}
+
+/* Get total booked amount of certain product inside certain period */
+function lk_get_booked_units($product_id, $start_date, $end_date, $exclude_order_id = null) {
+	$bookings = lk_get_booked_products($start_date, $end_date, $exclude_order_id, $product_id);
+	return $bookings[$product_id] ?? 0;
 }
