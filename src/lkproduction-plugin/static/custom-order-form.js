@@ -23,13 +23,55 @@ function lkFormatMoney (value) {
 	return value.toLocaleString('cs-CZ', {style: 'currency', currency: 'CZK', maximumFractionDigits: 0});
 }
 
+async function lkLoadProductBookings(start, end, order_id) {
+	const formData = new URLSearchParams();
+	formData.append('action', 'lk_load_product_bookings');
+	formData.append('security', lk_admin_ajax_obj.nonce);
+	formData.append('start', start);
+	formData.append('end', end);
+	formData.append('order_id', order_id);
+
+	try {
+		const response = await fetch(lk_admin_ajax_obj.ajax_url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded',
+			},
+			body: formData,
+		});
+
+		if (!response.ok) {
+			throw new Error('Network response was not ok');
+		}
+
+		const result = await response.json();
+
+		if (result.success) {
+			return result.data;
+		} else {
+			console.error('Logic Error:', result.data);
+		}
+	} catch (error) {
+		console.error('Fetch Error:', error);
+	}
+}
+
 window.addEventListener(
 	'load',
 	() => {
 		const form = document.querySelector('.lk-custom-order-form form');
+		if (!form) {
+			//Not on an LK custom form
+			return;
+		}
 		const start_date = form.querySelector('#start_date');
 		const end_date = form.querySelector('#end_date');
 		const rows = document.querySelectorAll('.lk-order-products-table .product-row');
+
+		if (!(form && start_date && end_date && rows)) {
+			console.error('Some elements are missing on LK custom form!');
+			return;
+		}
 
 		const getFormTotalDays = () => {
 			const start = new Date(start_date.value).getTime();
@@ -74,7 +116,8 @@ window.addEventListener(
 
 		const updateFormTotal = () => {
 			const total = getFormTotal();
-			form.querySelector('#total_order_price').innerText = lkFormatMoney(total);
+			const elements = document.querySelectorAll('.total-order-price');
+			elements.forEach((el) => el.innerText = lkFormatMoney(total));
 		}
 
 		const updateRowTotal = (row) => {
@@ -104,10 +147,22 @@ window.addEventListener(
 			}
 		);
 
-		const updateFormDays = () => {
+		const updateBookings = async () => {
+			const bookings = await lkLoadProductBookings(start_date.value, end_date.value, form.order_id.value);
+			rows.forEach(
+				(row) => {
+					const id = row.dataset.product_id;
+					row.dataset.stock_booked = (bookings[id]) ? bookings[id] : 0;
+					updateRowStock(row);
+				}
+			);
+		}
+
+		const updateFormDays = async () => {
 			form.querySelector('#total_days').innerText = getFormTotalDays();
 			updateFormTotal();
 			updateRows();
+			await updateBookings();
 		}
 
 		const saveForm = (e) => {
@@ -125,7 +180,7 @@ window.addEventListener(
 
 		start_date.addEventListener('change', updateFormDays);
 		end_date.addEventListener('change', updateFormDays);
-		end_date.addEventListener('change', updateFormDays);
+
 		rows.forEach(
 			(row) => {
 				const qty = row.querySelector('input');
@@ -133,7 +188,15 @@ window.addEventListener(
 			}
 		);
 		form.addEventListener('submit', saveForm);
-		const saveButton = document.querySelector('.lk-custom-order-form button[type=submit]');
-		saveButton.addEventListener('click', () => form.requestSubmit());
+		const saveButtons = document.querySelectorAll('.lk-custom-order-form button[type=submit]');
+		saveButtons.forEach(
+			(el) => el.addEventListener(
+				'click',
+				() => {
+					form.form_action.value = el.value;
+					form.requestSubmit();
+				}
+			)
+		);
 	}
 );

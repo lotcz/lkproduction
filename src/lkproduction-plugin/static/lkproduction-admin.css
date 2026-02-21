@@ -27,10 +27,15 @@
 
 /* CUSTOM ORDERS */
 
+.lk-custom-order-form .cols,
 .lk-custom-order-form .form-cols {
 	display: flex;
 	flex-direction: row;
 	align-items: start;
+	gap: 5px;
+}
+
+.lk-custom-order-form .form-cols {
 	gap: 1rem;
 }
 
@@ -46,6 +51,9 @@
 
 .lk-order-products-table {
 	margin-top: 1rem;
+	border: solid 1px #ddd;
+	border-radius: 10px;
+	padding: 5px 5px 0 5px;
 }
 
 .lk-order-products-table thead {
@@ -57,11 +65,31 @@
 .lk-order-products-table th {
 	text-align: left;
 	font-weight: bold;
+	border-bottom: 1px solid #ddd;
+	padding-bottom: 5px;
 }
 
-.lk-order-products-table td {
+.lk-order-products-table tr.used td.price.total,
+.lk-order-products-table tr.overbooked.used td.stock {
+	font-weight: bold;
+}
+
+.lk-order-products-table tr h2 {
+	text-align: center;
+	margin: 10px;
+}
+
+.lk-order-products-table tr.product-row td {
+	padding-right: 5px;
 	border-bottom: 1px solid #ddd;
-	margin-right: 2px;
+}
+
+.lk-order-products-table tr.product-row:last-child td {
+	border-bottom: none;
+}
+
+.lk-order-products-table tr.overbooked td.stock {
+	color: red;
 }
 
 .lk-order-products-table td.price,
@@ -73,21 +101,18 @@
 	width: 4rem;
 }
 
-.lk-custom-order-form .button {
-	margin-top: 0.5rem;
-}
-
-.lk-order-products-table tr.used td.price.total,
-.lk-order-products-table tr.overbooked.used td.stock {
-	font-weight: bold;
-}
-
-.lk-order-products-table tr.overbooked td.stock {
-	color: red;
-}
-
 .lk-custom-order-form .form-footer {
 	position: sticky;
 	bottom: 0;
 	background: #f0f0f1;
+}
+
+.lk-custom-order-form .form-footer td {
+	border-top: 1px solid #ddd;
+	padding-top: 5px;
+	padding-bottom: 5px;
+}
+
+.lk-custom-order-form .form-footer .total-order-price {
+	font-weight: bold;
 }

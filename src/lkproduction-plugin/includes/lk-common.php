@@ -120,6 +120,10 @@ function lk_order_get_total_price($order): float {
 	return lk_order_get_daily_price($order) * lk_order_get_total_days($order);
 }
 
+function lk_order_get_edit_link($order_id): string {
+	return admin_url('admin.php?page=lk-rental-custom-order-form&order_id=' . $order_id);
+}
+
 /* PRODUCT */
 
 const LK_PRODUCT_TOTAL_STOCK_META = '_rental_total_stock';
@@ -132,7 +136,6 @@ function lk_set_product_total_stock($product_id, $stock) {
 function lk_get_product_total_stock($product_id) {
 	return (int) get_post_meta($product_id, LK_PRODUCT_TOTAL_STOCK_META, true);
 }
-
 
 /* Return list of all booked products for certain period */
 function lk_get_booked_products($start_date, $end_date, $exclude_order_id = null, $product_id = null): array {
@@ -166,10 +169,10 @@ function lk_get_booked_products($start_date, $end_date, $exclude_order_id = null
 	}
 
 	if ($exclude_order_id) {
-		$query .= $wpdb->prepare(" AND NOT items.order_id = %d", $exclude_order_id);
+		$query .= $wpdb->prepare(" AND NOT items.order_id = %d", (int)$exclude_order_id);
 	}
 
-	error_log($query);
+	//error_log($query);
 
 	$items = $wpdb->get_results($query);
 
@@ -184,13 +187,13 @@ function lk_get_booked_products($start_date, $end_date, $exclude_order_id = null
 			foreach ($items as $alt) {
 				if ($alt->product_id == $id) {
 					if ($alt->start_date <= $item->end_date && $alt->end_date >= $item->start_date) {
-						$sum += $alt->quantity;
+						$sum += (int)$alt->quantity;
 					}
 				}
 			}
 			if ($sum > $existing) $aggregated[$id] = $sum;
 		} else {
-			$aggregated[$id] = $item->quantity;
+			$aggregated[$id] = (int)$item->quantity;
 		}
 	}
 

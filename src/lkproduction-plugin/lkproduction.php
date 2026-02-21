@@ -12,7 +12,7 @@
  * Requires Plugins: woocommerce
  */
 
-if (!defined( 'ABSPATH')) {
+if (!defined('ABSPATH')) {
 	exit;
 }
 
@@ -51,7 +51,7 @@ add_action('wp_enqueue_scripts', 'lkproduction_scripts');
 function lkproduction_scripts() {
 	wp_enqueue_style(
 		'lkproduction-style',
-		plugin_dir_url( __FILE__ ) . '/static/lkproduction.css',
+		plugin_dir_url(__FILE__) . '/static/lkproduction.css',
 		[],
 		filemtime(plugin_dir_path(__FILE__) . '/static/lkproduction.css')
 	);
@@ -62,17 +62,24 @@ add_action('admin_enqueue_scripts', 'lkproduction_admin_scripts');
 function lkproduction_admin_scripts() {
 	wp_enqueue_style(
 		'lkproduction-admin-style',
-		plugin_dir_url( __FILE__ ) . '/static/lkproduction-admin.css',
+		plugin_dir_url(__FILE__) . '/static/lkproduction-admin.css',
 		[],
 		filemtime(plugin_dir_path(__FILE__) . '/static/lkproduction-admin.css')
 	);
 
 	wp_enqueue_script(
 		'lkproduction-custom-form-script',
-		plugin_dir_url( __FILE__ ) . '/static/custom-order-form.js',
+		plugin_dir_url(__FILE__) . '/static/custom-order-form.js',
 		[],
 		filemtime(plugin_dir_path(__FILE__) . '/static/custom-order-form.js')
 	);
+
+	// 5. Localize the script to pass the AJAX URL and a Nonce to JS
+	wp_localize_script('lkproduction-custom-form-script', 'lk_admin_ajax_obj', [
+		'ajax_url' => admin_url('admin-ajax.php'),
+		'nonce' => wp_create_nonce('lk_admin_ajax_nonce'),
+	]);
+
 }
 
 /* RENDER CALENDAR */
@@ -130,5 +137,14 @@ function rental_calendar_submenu_links() {
 		'Nová objednávka (WC)',
 		'manage_options',
 		'post-new.php?post_type=shop_order&source=lk'
+	);
+
+	add_submenu_page(
+		null,
+		'Náhled',
+		'Náhled',
+		'manage_woocommerce',
+		'lk-custom-print-preview',
+		'lk_render_custom_order_print_preview'
 	);
 }

@@ -201,12 +201,14 @@ function rental_check_overbooking_warning($order) {
 	$end = lk_order_get_end_date($order);
 
 	$conflicts = [];
+	$items = $order->get_items();
 
-	foreach ($order->get_items() as $item) {
+	foreach ($items as $item) {
 		$product_id = $item->get_product_id();
 		$total_owned = lk_get_product_total_stock($product_id);
-		$already_booked = lk_get_booked_units($product_id, $start, $end);
-		if ($already_booked > $total_owned) {
+		$already_booked = lk_get_booked_units($product_id, $start, $end, $order->get_id());
+		$qty = $item->get_quantity();
+		if (($already_booked + $qty) > $total_owned) {
 			$conflicts[] = $item->get_name();
 		}
 	}
@@ -237,18 +239,21 @@ function lk_admin_item_overbooking_warning($item_id, $item, $product) {
 	// 2. Get Inventory and Bookings
 	$product_id = $product->get_id();
 	$total_owned = lk_get_product_total_stock($product_id);
-
-	// Use our optimized function (excluding current order to see what ELSE is booked)
-	// Or include it to see the "Total Impact"
-	$booked_elsewhere = lk_get_booked_units($product_id, $start, $end);
+	$booked_elsewhere = lk_get_booked_units($product_id, $start, $end, $order->get_id());
+	$qty = $item->get_quantity();
+	$total_booked = $booked_elsewhere + $qty;
 
 	// 3. Check for shortage
-	if ($booked_elsewhere > $total_owned) {
-		$shortage = $booked_elsewhere - $total_owned;
-
-		echo '<div class="rental-overbooking-alert" style="margin-top: 5px; padding: 5px 8px; background-color: #fbeaea; border-left: 3px solid #d63638; color: #d63638; font-size: 11px; display: inline-block;">';
-		echo '<strong>⚠️ Pozor: Překročený stav skladu!</strong><br>';
-		echo sprintf('V tomto termínu je celkem rezervováno %d ks, ale vlastníte pouze %d ks (Chybí: %d ks).', $booked_elsewhere, $total_owned, $shortage);
-		echo '</div>';
+	if ($total_booked > $total_owned) {
+		$shortage = $total_booked - $total_owned;
+		?>
+		<div class="rental-overbooking-alert" style="margin-top: 5px; padding: 5px 8px; background-color: #fbeaea; border-left: 3px solid #d63638; color: #d63638; font-size: 11px; display: inline-block;">
+			<strong>⚠️ Pozor: Překročený stav skladu!</strong><br>
+			V tomto termínu je celkem rezervováno <?php echo $booked_elsewhere?> ks,
+			nyní rezervujete dalších <?php echo $qty ?> ks,
+			ale vlastníte pouze <?php echo $total_owned ?> ks
+			(Chybí: <strong><?php echo $shortage?> ks</strong>)
+		</div>
+		<?php
 	}
 }

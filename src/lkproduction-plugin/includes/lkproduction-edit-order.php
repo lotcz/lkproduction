@@ -47,7 +47,7 @@ function lk_get_all_public_woocommerce_products(): array {
 			  AND tt.taxonomy = 'product_cat'
 			ORDER BY t.name ASC, p.post_title ASC
 		",
-		LK_PRODUCT_TOTAL_STOCK_META)
+			LK_PRODUCT_TOTAL_STOCK_META)
 	);
 
 	if (empty($results)) return array();
@@ -129,6 +129,7 @@ function lk_rental_render_custom_order_form() {
 	$end_date = '';
 	$status = LK_ORDER_STATE_QUOTE;
 	$edit_url = null;
+	$total_price = 0;
 
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$event_name = isset($_POST['event_name']) ? sanitize_text_field($_POST['event_name']) : null;
@@ -141,11 +142,16 @@ function lk_rental_render_custom_order_form() {
 
 		$order = lk_save_order($order_id, $event_name, $start_date, $end_date, $status, $items);
 
-		if (empty($order_id)) {
-			wp_redirect(admin_url('admin.php?page=lk-rental-custom-order-form&order_id=' . $order->get_id()));
+		$action = isset($_POST['form_action']) ? sanitize_text_field($_POST['form_action']) : null;
+		if ($action === 'preview') {
+			wp_redirect(admin_url('admin.php?page=lk-custom-print-preview&order_id=' . $order->get_id()));
 			exit;
 		}
-		$edit_url = $order->get_edit_order_url();
+
+		if (empty($order_id)) {
+			wp_redirect(lk_order_get_edit_link($order_id));
+			exit;
+		}
 	} elseif (!empty($order_id)) {
 		$order = wc_get_order($order_id);
 		if (empty($order)) {
@@ -156,13 +162,15 @@ function lk_rental_render_custom_order_form() {
 		$start_date = lk_order_get_start_date($order);
 		$end_date = lk_order_get_end_date($order);
 		$status = $order->get_status();
-		$edit_url = $order->get_edit_order_url();
 	}
 
 	$all_products = lk_get_public_products($start_date, $end_date, $order_id);
 
 	$order_items = [];
+
 	if ($order) {
+		$edit_url = $order->get_edit_order_url();
+		$total_price = $order->get_total();
 		$oi = $order->get_items();
 		foreach ($oi as $item) {
 			$product_id = $item->get_product_id();
@@ -171,6 +179,7 @@ function lk_rental_render_custom_order_form() {
 		}
 	}
 
+	$days = lk_get_total_days($start_date, $end_date);
 	$heading = $order ? (($status === LK_ORDER_STATE_QUOTE) ? "Cenová nabídka" : "Objednávka") : "Vytvořit cenovou nabídku";
 
 	?>
@@ -189,7 +198,9 @@ function lk_rental_render_custom_order_form() {
 		</div>
 		<div class="lk-custom-order-form">
 			<form method="post" action="">
-				<input type="hidden" name="items" value="" />
+				<input type="hidden" name="items" value=""/>
+				<input type="hidden" name="order_id" value="<?php echo $order_id ?>"/>
+				<input type="hidden" name="form_action" value="save"/>
 				<div class="form-cols">
 					<div class="form-col">
 						<div>
@@ -243,7 +254,7 @@ function lk_rental_render_custom_order_form() {
 						</div>
 						<div>
 							<label for="total_price">Cena celkem</label>
-							<div id="total_order_price" class="static-value"><?php echo wc_price(isset($order) ? $order->get_total() : 0) ?></div>
+							<div class="total-order-price static-value"><?php echo wc_price($total_price) ?></div>
 						</div>
 					</div>
 				</div>
@@ -277,11 +288,11 @@ function lk_rental_render_custom_order_form() {
 							$booked = $product['booked'];
 							$qty = $order_items[$id] ?? 0;
 							$stockCurrent = $stock - ($booked + $qty);
-							$total = $price * $qty;
+							$total = $price * $qty * $days;
 							$link = admin_url("post.php?post=$id&action=edit");
 							?>
 							<tr
-								class="product-row <?php echo $stockCurrent < 0 ? 'overbooked' : ''?> <?php echo $qty > 0 ? 'used' : ''?>"
+								class="product-row <?php echo $stockCurrent < 0 ? 'overbooked' : '' ?> <?php echo $qty > 0 ? 'used' : '' ?>"
 								data-product_id="<?php echo $id ?>"
 								data-price="<?php echo $price ?>"
 								data-stock_total="<?php echo $stock ?>"
@@ -289,14 +300,14 @@ function lk_rental_render_custom_order_form() {
 							>
 								<td>
 									<div class="popup-link-container">
-									<?php echo $name ?>
-									<a class="popup-link" href="<?php echo $link?>" target="_blank">&nbsp;</a>
+										<?php echo $name ?>
+										<a class="popup-link" href="<?php echo $link ?>" target="_blank">&nbsp;</a>
 									</div>
 								</td>
 								<td><?php echo $desc ?></td>
-								<td class="qty"><input type="number" name="product_qty" value="<?php echo $qty?>" min="0"/></td>
+								<td class="qty"><input type="number" name="product_qty" value="<?php echo $qty ?>" min="0"/></td>
 								<td class="price"><?php echo wc_price($price) ?></td>
-								<td class="price total"><?php echo $total?> Kč</td>
+								<td class="price total"><?php echo wc_price($total) ?></td>
 								<td class="stock"><?php echo $stockCurrent ?></td>
 							</tr>
 							<?php
@@ -304,15 +315,339 @@ function lk_rental_render_custom_order_form() {
 					}
 					?>
 					</tbody>
+					<tfoot>
+					<tr class="form-footer">
+						<td colspan="3">
+							<div class="cols">
+								<button class="button button-primary" type="submit" name="form_action" value="save">Uložit</button>
+								<button class="button button-primary" type="submit" name="form_action" value="preview">Náhled...</button>
+							</div>
+						</td>
+						<td class="price">CELKEM:</td>
+						<td class="total-order-price price"><?php echo wc_price($total_price) ?></td>
+						<td></td>
+					</tr>
+					</tfoot>
 				</table>
-			</div>
-			<div class="form-footer">
-				<button class="button button-primary" type="submit">Uložit</button>
 			</div>
 		</div>
 	</div>
 
 	<?php
+}
+
+function lk_render_custom_order_print_preview() {
+	if (!current_user_can('manage_woocommerce')) {
+		wp_die('Unauthorized');
+	}
+
+	// 1. Clear any previous output buffers
+	if (ob_get_length()) ob_clean();
+
+	$order_id = empty($_GET['order_id']) ? null : $_GET['order_id'];
+	$order = wc_get_order($order_id);
+
+	$logo = plugin_dir_url(__FILE__) . '../static/logo.png';
+
+	?><!DOCTYPE html>
+	<html>
+	<head>
+		<title>Náhled</title>
+		<style>
+			@page {
+				margin: 1cm;
+			}
+
+			body {
+				counter-reset: page;
+				font-family: Inter, Roboto, Arial, sans-serif;
+				font-size: 12pt;
+				max-width: 21cm;
+			}
+
+			.print-menu {
+				margin-bottom: 20px;
+				position: sticky;
+				top: 0;
+				display: flex;
+				flex-direction: row;
+				gap: 20px;
+				background-color: white;
+				padding: 20px;
+			}
+
+			/* Define where the page number should appear */
+			.page-number::after {
+				counter-increment: page;
+				content: "Stránka " counter(page);
+
+				/* Position it at the bottom right of every printed page */
+				position: fixed;
+				bottom: 0.5cm;
+				right: 1cm;
+				font-size: 10pt;
+				color: #555;
+			}
+
+			h1 {
+				font-size: 22pt;
+			}
+
+			h2 {
+				font-size: 14pt;
+			}
+
+			.row {
+				display: flex;
+				flex-direction: row;
+			}
+
+			.flex-1 {
+				flex-grow: 1;
+			}
+
+			.bordered {
+				border: 1pt solid #ccc;
+				border-radius: 5px;
+				padding: 2mm;
+			}
+
+			.bold, .value, th {
+				font-weight: bold;
+			}
+
+			.form-group {
+				margin-top: 2mm;
+			}
+
+			.form-group:first-child {
+				margin-top: 0;
+			}
+
+			.label {
+				font-size: 10pt;
+			}
+
+			.price {
+				text-align: right;
+				text-wrap: nowrap;
+			}
+
+			.logo {
+				width: 5cm;
+				height: 2.5cm;
+				background-repeat: no-repeat;
+				background-position: center center;
+				background-size: contain;
+			}
+
+			.logo img {
+				max-width: 100%;
+				max-height: 100%;
+			}
+
+			table {
+				margin-top: 0.5cm;
+				width: 100%;
+			}
+
+			table th {
+				text-align: left;
+				font-size: 10pt;
+			}
+
+			table h2 {
+				margin: 2mm 0 2mm 0;
+				text-align: center;
+			}
+
+			table .product-row td {
+				border-bottom: 1pt solid #ccc;
+			}
+
+			table .form-footer td {
+				padding-top: 2mm;
+			}
+
+			@media print {
+				.print-menu {
+					display: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+	<!--div class="page-number"></div-->
+	<?php
+
+	if (empty($order)) {
+		echo '<div class="notice notice-error"><p>Objednávka nebyla nalezena!</p></div>';
+		return;
+	}
+
+	$heading = $order->get_status() === LK_ORDER_STATE_QUOTE ? "Cenová nabídka" : "Objednávka";
+
+	$days = lk_order_get_total_days($order);
+	$order_items = $order->get_items();
+	$grouped = array();
+	$added = [];
+
+	foreach ($order_items as $item) {
+		$product_id = $item->get_product_id();
+
+		if (!isset($added[$product_id])) {
+			$product = $item->get_product();
+			$category_ids = $product->get_category_ids();
+			$category = get_term($category_ids[0], 'product_cat');
+			$category_name = $category->name;
+
+			if (!isset($grouped[$category_name])) {
+				$grouped[$category_name] = array();
+			}
+
+			$grouped[$category_name][] = array(
+				'title' => $product->get_name(),
+				'desc' => $product->get_short_description(),
+				'price' => $product->get_price(),
+				'qty' => $item->get_quantity()
+			);
+		}
+		$added[$product_id] = true;
+	}
+
+
+	?>
+	<div class="print-menu">
+		<div>
+			<a href="<?php echo lk_order_get_edit_link($order_id) ?>" class="edit-button">Zpět</a>
+		</div>
+		<div>
+			<button class="print-button" onclick="window.print()">Vytisknout</button>
+		</div>
+	</div>
+
+	<div class="order">
+		<div class="row">
+			<div class="flex-1" style="padding-right:0.5cm">
+				<h1><?php echo $heading ?></h1>
+				<div class="row bordered" style="align-items:end; justify-content:space-between;">
+					<div>
+						<div class="form-group">
+							<div class="label">Název akce</div>
+							<div class="value"><?php echo lk_order_get_event_name($order) ?></div>
+						</div>
+						<div class="form-group">
+							<div class="label">Od</div>
+							<div class="value">
+								<?php echo lk_datetime(lk_order_get_start_date($order)) ?>
+							</div>
+						</div>
+					</div>
+					<div>
+						<div class="form-group">
+							<div class="label">Do</div>
+							<div class="value">
+								<?php echo lk_datetime(lk_order_get_end_date($order)) ?>
+							</div>
+						</div>
+					</div>
+					<div>
+						<div class="form-group">
+							<div class="label">Cena</div>
+							<div class="value"><?php echo wc_price($order->get_total()) ?></div>
+						</div>
+						<div class="form-group">
+							<div class="label">Celkem dnů</div>
+							<div class="value"><?php echo $days ?></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="">
+				<div class="logo">
+					<img src="<?php echo $logo ?>"/>
+				</div>
+				<div class="address">
+					LK PRODUCTION s.r.o.<br>
+					Na dolinách 86/1 , Praha 4<br>
+					IČ: 19222718<br>
+					DIČ: CZ19222718
+				</div>
+			</div>
+
+		</div>
+
+		<table class="bordered">
+			<thead>
+			<tr>
+				<th>Název</th>
+				<th>Popis</th>
+				<th class="price">Ks</th>
+				<th class="price">Cena/ks</th>
+				<th class="price">Cena celkem</th>
+			</tr>
+			</thead>
+			<tbody>
+			<?php
+
+			foreach ($grouped as $category_name => $products) {
+				if (empty($products)) continue;
+
+				echo '<tr><td colspan="5"><h2>' . esc_html($category_name) . '</h2></td></tr>';
+
+				foreach ($products as $product) {
+					$name = $product['title'];
+					$desc = $product['desc'];
+					$price = $product['price'];
+					$qty = $product['qty'];
+					$total = $price * $qty * $days;
+					?>
+					<tr class="product-row">
+						<td><?php echo $name ?></td>
+						<td><?php echo $desc ?></td>
+						<td class="qty price"><?php echo $qty ?></td>
+						<td class="price"><?php echo wc_price($price) ?></td>
+						<td class="price total"><?php echo wc_price($total) ?></td>
+					</tr>
+					<?php
+				}
+			}
+
+			?>
+			<tr class="form-footer">
+				<td colspan="3"></td>
+				<td class="price">CELKEM:</td>
+				<td class="bold price"><?php echo wc_price($order->get_total()) ?></td>
+			</tr>
+			</tbody>
+		</table>
+	</div>
+	</body>
+	</html>
+	<?php
+	// 3. Exit to prevent the rest of the WordPress admin footer from loading
+	exit;
+}
+
+/**
+ * Add REST endpoint to load booked products
+ */
+
+add_action('wp_ajax_lk_load_product_bookings', 'handle_admin_ajax_request');
+
+function handle_admin_ajax_request() {
+	check_ajax_referer('lk_admin_ajax_nonce', 'security');
+
+	if (!current_user_can('manage_options')) {
+		wp_send_json_error('Unauthorized', 403);
+	}
+
+	$start = sanitize_text_field($_POST['start']);
+	$end = sanitize_text_field($_POST['end']);
+	$order_id = sanitize_text_field($_POST['order_id']);
+
+	// Example response
+	wp_send_json_success(lk_get_booked_products($start, $end, (int)$order_id));
 }
 
 /* Add link to custom form into standard WC order */
