@@ -43,12 +43,12 @@ class Rental_GCal_Sync {
 		$this->service = $this->build_service();
 	}
 
-	private function parse_date( string $raw ): ?DateTime {
-		$raw = trim( $raw );
+	private function parse_date(string $raw): ?DateTime {
+		$raw = trim($raw);
 
 		// Unix timestamp
-		if ( ctype_digit( $raw ) ) {
-			return ( new DateTime() )->setTimestamp( (int) $raw );
+		if (ctype_digit($raw)) {
+			return (new DateTime())->setTimestamp((int)$raw);
 		}
 
 		// Try common formats explicitly before falling back to strtotime
@@ -63,16 +63,18 @@ class Rental_GCal_Sync {
 			'd.m.Y',           // 12.02.2026
 		];
 
-		foreach ( $formats as $format ) {
-			$dt = DateTime::createFromFormat( $format, $raw );
-			if ( $dt !== false ) {
+		$tz = wp_timezone();
+
+		foreach ($formats as $format) {
+			$dt = DateTime::createFromFormat($format, $raw, $tz);
+			if ($dt !== false) {
 				return $dt;
 			}
 		}
 
-		// Last resort
-		$ts = strtotime( $raw );
-		return $ts !== false ? ( new DateTime() )->setTimestamp( $ts ) : null;
+		// Last resort — strtotime ignores $tz but at least parses the value
+		$ts = strtotime($raw);
+		return $ts !== false ? (new DateTime('@' . $ts))->setTimezone($tz) : null;
 	}
 
 	// -------------------------------------------------------------------------
@@ -86,9 +88,6 @@ class Rental_GCal_Sync {
 	 * @throws Exception on API error.
 	 */
 	public function create_event(WC_Order $order): void {
-
-		error_log('creating GCal');
-
 		$event = $this->build_event($order);
 		$created = $this->service->events->insert($this->calendar_id, $event);
 
@@ -105,7 +104,6 @@ class Rental_GCal_Sync {
 	 * @throws Exception on API error.
 	 */
 	public function update_event(WC_Order $order): void {
-		error_log('updating GCal');
 		$event_id = $order->get_meta(self::META_EVENT_ID);
 
 		if (empty($event_id)) {
@@ -139,7 +137,6 @@ class Rental_GCal_Sync {
 	 * @throws Exception on API error (except 404 which is silently ignored).
 	 */
 	public function delete_event(WC_Order $order): void {
-		error_log('deleting GCal');
 		$event_id = $order->get_meta(self::META_EVENT_ID);
 
 		if (empty($event_id)) {
@@ -181,37 +178,16 @@ class Rental_GCal_Sync {
 	// Hook handlers (called from main plugin file)
 	// -------------------------------------------------------------------------
 
-	/**
-	 * Main entry point hooked to woocommerce_order_status_changed.
-	 */
-	public static function handle_status_change(int $order_id, string $old_status, string $new_status): void {
-		if (get_option(Rental_GCal_Admin::OPTION_ENABLED, 'no') !== 'yes') {
-			return;
-		}
+	public static function handle_order_save(WC_Order $order): void {
+		if (get_option(Rental_GCal_Admin::OPTION_ENABLED, 'no') !== 'yes') return;
 
-		$order = wc_get_order($order_id);
-		if (!$order) {
-			return;
-		}
+		$sync = new self();
 
-		// Only act on rental orders (orders that have a start date set)
-		if (!lk_order_has_dates($order)) {
-			return;
-		}
-
-		try {
-			$sync = new self();
-
-			if (in_array($new_status, self::active_statuses(), true)) {
-				$event_id = $order->get_meta(self::META_EVENT_ID);
-				$event_id ? $sync->update_event($order) : $sync->create_event($order);
-
-			} elseif (in_array($new_status, self::cancelled_statuses(), true)) {
-				$sync->delete_event($order);
-			}
-		} catch (Exception $e) {
-			// Log but don't crash the order flow
-			self::log('Error on order #' . $order_id . ': ' . $e->getMessage(), 'error');
+		if (!lk_order_is_calendar_valid($order)) {
+			$sync->delete_event($order); // no-op if no event ID
+		} else {
+			$event_id = $order->get_meta(self::META_EVENT_ID);
+			$event_id ? $sync->update_event($order) : $sync->create_event($order);
 		}
 	}
 
@@ -238,13 +214,15 @@ class Rental_GCal_Sync {
 		$start_date = lk_order_get_start_date($order);
 		$end_date = lk_order_get_end_date($order);
 
-		$start_dt = $this->parse_date( $start_date );
-		$end_dt   = $this->parse_date( $end_date );
+		self::log($start_date);
 
-		if ( ! $start_dt || ! $end_dt ) {
+		$start_dt = $this->parse_date($start_date);
+		$end_dt = $this->parse_date($end_date);
+
+		if (!$start_dt || !$end_dt) {
 			throw new RuntimeException(
 				sprintf(
-					__( 'Order #%d has unparseable rental dates: start=%s end=%s', 'rental-gcal' ),
+					__('Order #%d has unparseable rental dates: start=%s end=%s', 'rental-gcal'),
 					$order->get_id(),
 					$start_date,
 					$end_date
@@ -253,26 +231,24 @@ class Rental_GCal_Sync {
 		}
 
 		$tz = wp_timezone();
-		$start_dt->setTimezone( $tz );
-		$end_dt->setTimezone( $tz );
 
-		$event->setSummary( $this->build_summary( $order ) );
-		$event->setDescription( $this->build_description( $order ) );
+		$event->setSummary($this->build_summary($order));
+		$event->setDescription($this->build_description($order));
 
-		$event->setStart( new Google\Service\Calendar\EventDateTime( [
-			'dateTime' => $start_dt->format( DateTime::ATOM ),
+		$event->setStart(new Google\Service\Calendar\EventDateTime([
+			'dateTime' => $start_dt->format(DateTime::ATOM),
 			'timeZone' => $tz->getName(),
-		] ) );
-		$event->setEnd( new Google\Service\Calendar\EventDateTime( [
-			'dateTime' => $end_dt->format( DateTime::ATOM ),
+		]));
+		$event->setEnd(new Google\Service\Calendar\EventDateTime([
+			'dateTime' => $end_dt->format(DateTime::ATOM),
 			'timeZone' => $tz->getName(),
-		] ) );
+		]));
 		// Store WC order ID in extended properties so it's queryable via the API
-		$event->setExtendedProperties( new Google\Service\Calendar\EventExtendedProperties( [
-			'private' => [ 'wc_order_id' => (string) $order->get_id() ],
-		] ) );
+		$event->setExtendedProperties(new Google\Service\Calendar\EventExtendedProperties([
+			'private' => ['wc_order_id' => (string)$order->get_id()],
+		]));
 
-		self::log( 'Event payload: ' . wp_json_encode( $event->toSimpleObject() ) );
+		self::log('Event payload: ' . wp_json_encode($event->toSimpleObject()));
 
 		return $event;
 	}

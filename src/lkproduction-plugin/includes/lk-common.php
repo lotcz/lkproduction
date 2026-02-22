@@ -87,17 +87,28 @@ function lk_order_get_end_date($order) {
 	return $order->get_meta(LK_ORDER_END_DATE_META);
 }
 
+// return true if order has both start and end dates
+function lk_order_has_dates($order): bool {
+	return (!(empty(lk_order_get_start_date($order)) || empty(lk_order_get_end_date($order))));
+}
+
 function lk_get_valid_order_states(): array {
-	return ['wc-pending', 'wc-processing', 'wc-completed', 'wc-on-hold'];
+	return ['pending', 'processing', 'completed', 'on-hold'];
 }
 
 function lk_get_valid_order_states_sql(): string {
-	return "'" . join("','", lk_get_valid_order_states()) . "'";
+	$sql_values = array_map(fn ($state) => "'wc-$state'", lk_get_valid_order_states());
+	return join(",", $sql_values);
 }
 
-// return true is order has both start and end dates
-function lk_order_has_dates($order): bool {
-	return (!(empty(lk_order_get_start_date($order)) || empty(lk_order_get_end_date($order))));
+// return true if order is in one of our valid states
+function lk_order_is_valid($order): bool {
+	return array_any(lk_get_valid_order_states(), fn ($state) => $state === $order->get_status());
+}
+
+// return true if order is both valid and has start and end date
+function lk_order_is_calendar_valid($order): bool {
+	return lk_order_is_valid($order) && lk_order_has_dates($order);
 }
 
 function lk_order_get_daily_price($order): float {

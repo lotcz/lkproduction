@@ -14,10 +14,8 @@ add_action(
 		require_once plugin_dir_path(__FILE__) . '/Rental_GCal_Sync.php';
 
 		add_action(
-			'woocommerce_order_status_changed',
-			['Rental_GCal_Sync', 'handle_status_change'],
-			10,
-			3
+			'woocommerce_after_order_object_save',
+			['Rental_GCal_Sync', 'handle_order_save']
 		);
 	}
 );
