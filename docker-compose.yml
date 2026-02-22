@@ -66,3 +66,11 @@ services:
     depends_on:
       - db
       - ftp
+
+  composer:
+    image: composer:2
+    container_name: lk-plugin-composer
+    volumes:
+      - ./src/lkproduction-plugin:/app
+    working_dir: /app
+    command: install

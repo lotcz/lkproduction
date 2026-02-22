@@ -95,6 +95,11 @@ function lk_get_valid_order_states_sql(): string {
 	return "'" . join("','", lk_get_valid_order_states()) . "'";
 }
 
+// return true is order has both start and end dates
+function lk_order_has_dates($order): bool {
+	return (!(empty(lk_order_get_start_date($order)) || empty(lk_order_get_end_date($order))));
+}
+
 function lk_order_get_daily_price($order): float {
 	if (empty($order)) return 0;
 

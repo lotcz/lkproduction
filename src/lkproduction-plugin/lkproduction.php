@@ -21,6 +21,7 @@ require_once __DIR__ . '/includes/lkproduction-product.php';
 require_once __DIR__ . '/includes/lkproduction-order.php';
 require_once __DIR__ . '/includes/lkproduction-calendar.php';
 require_once __DIR__ . '/includes/lkproduction-edit-order.php';
+require_once __DIR__ . '/gcal/lkproduction-gcal.php';
 
 /* STRINGS REPLACEMENTS */
 add_filter('gettext', 'rental_rename_subtotal_to_daily_fee', 20, 3);
