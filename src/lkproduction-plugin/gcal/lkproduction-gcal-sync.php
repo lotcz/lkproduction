@@ -41,40 +41,6 @@ function lk_gcal_get_event_id(WC_Order $order): string {
 	return $order->get_meta(LK_GCAL_META_EVENT_ID);
 }
 
-function lk_gcal_parse_date(string $raw): ?DateTime {
-	$raw = trim($raw);
-
-	// Unix timestamp
-	if (ctype_digit($raw)) {
-		return (new DateTime())->setTimestamp((int)$raw);
-	}
-
-	// Try common formats explicitly before falling back to strtotime
-	$formats = [
-		'Y-m-d\TH:i',      // 2026-02-12T11:59
-		'Y-m-d\TH:i:s',    // 2026-02-12T11:59:00
-		'Y-m-d H:i:s',     // 2026-02-12 11:59:00
-		'Y-m-d H:i',       // 2026-02-12 11:59
-		'Y-m-d',           // 2026-02-12
-		'd/m/Y H:i',       // 12/02/2026 11:59
-		'd/m/Y',           // 12/02/2026
-		'd.m.Y',           // 12.02.2026
-	];
-
-	$tz = wp_timezone();
-
-	foreach ($formats as $format) {
-		$dt = DateTime::createFromFormat($format, $raw, $tz);
-		if ($dt !== false) {
-			return $dt;
-		}
-	}
-
-	// Last resort — strtotime ignores $tz but at least parses the value
-	$ts = strtotime($raw);
-	return $ts !== false ? (new DateTime('@' . $ts))->setTimezone($tz) : null;
-}
-
 function lk_gcal_build_summary(WC_Order $order): string {
 	$event_name = lk_order_get_event_name($order);
 	return empty($event_name) ? sprintf("Objednávka #%s", $order->get_order_number()) : $event_name;
@@ -100,8 +66,8 @@ function lk_gcal_populate_event(Google\Service\Calendar\Event $event, WC_Order $
 	$start_date = lk_order_get_start_date($order);
 	$end_date = lk_order_get_end_date($order);
 
-	$start_dt = lk_gcal_parse_date($start_date);
-	$end_dt = lk_gcal_parse_date($end_date);
+	$start_dt = lk_parse_date($start_date);
+	$end_dt = lk_parse_date($end_date);
 
 	if (!$start_dt || !$end_dt) {
 		throw new RuntimeException(

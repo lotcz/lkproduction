@@ -77,7 +77,7 @@ function lk_get_calendar_events($view_start, $view_end, $product_id = null) {
 			'title' => $name,
 			'start' => $start_iso,
 			'end'   => $end_iso,
-			'url'   => html_entity_decode(get_edit_post_link($row->ID)),
+			'url'   => html_entity_decode(lk_order_get_edit_link_custom($row->ID)),
 			'color' => $color,
 			'allDay' => false
 		];

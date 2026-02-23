@@ -4,21 +4,45 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-function lk_date($date) {
-	if (empty($date)) return '';
-	$date_format = get_option('date_format');
-	return wp_date($date_format, strtotime($date));
+function lk_parse_date(string|null $raw): DateTime|null {
+	$raw = trim($raw);
+
+	// Unix timestamp
+	if (ctype_digit($raw)) {
+		return (new DateTime())->setTimestamp((int)$raw);
+	}
+
+	// Try common formats explicitly before falling back to strtotime
+	$formats = [
+		'Y-m-d\TH:i',      // 2026-02-12T11:59
+		'Y-m-d\TH:i:s',    // 2026-02-12T11:59:00
+		'Y-m-d H:i:s',     // 2026-02-12 11:59:00
+		'Y-m-d H:i',       // 2026-02-12 11:59
+		'Y-m-d',           // 2026-02-12
+		'd/m/Y H:i',       // 12/02/2026 11:59
+		'd/m/Y',           // 12/02/2026
+		'd.m.Y',           // 12.02.2026
+	];
+
+	$tz = wp_timezone();
+
+	foreach ($formats as $format) {
+		$dt = DateTime::createFromFormat($format, $raw, $tz);
+		if ($dt !== false) {
+			return $dt;
+		}
+	}
+
+	// Last resort — strtotime ignores $tz but at least parses the value
+	$ts = strtotime($raw);
+	return $ts !== false ? (new DateTime('@' . $ts))->setTimezone($tz) : null;
 }
 
-function lk_time($date) {
+function lk_datetime(string|Datetime|null $date): string {
 	if (empty($date)) return '';
-	$date_format = get_option('time_format');
-	return wp_date($date_format, strtotime($date));
-}
-
-function lk_datetime($date) {
-	if (empty($date)) return '';
-	return lk_date($date) . ' ' . lk_time($date);
+	if (is_string($date)) return lk_datetime(lk_parse_date($date));
+	$date_format = sprintf("%s %s", get_option('date_format'), get_option('time_format'));
+	return wp_date($date_format, $date->getTimestamp());
 }
 
 function lk_get_total_days($start, $end): int {
@@ -140,8 +164,12 @@ function lk_order_get_total_price($order): float {
 	return lk_order_get_daily_price($order) * lk_order_get_total_days($order);
 }
 
-function lk_order_get_edit_link($order_id): string {
-	return admin_url('admin.php?page=lk-rental-custom-order-form&order_id=' . $order_id);
+function lk_order_get_edit_link_custom($order_id): string {
+	return admin_url("admin.php?page=lk-rental-custom-order-form&order_id=$order_id");
+}
+
+function lk_order_get_print_preview_link($order_id): string {
+	return admin_url("admin.php?page=lk-custom-print-preview&order_id=$order_id");
 }
 
 /* PRODUCT */

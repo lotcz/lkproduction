@@ -121,17 +121,9 @@ function rental_calendar_submenu_links() {
 	add_submenu_page(
 		'lk-rental-calendar',
 		'Objednávky',
-		'Objednávky (WC)',
+		'Objednávky',
 		'manage_options',
 		'edit.php?post_type=shop_order&source=lk'
-	);
-
-	add_submenu_page(
-		'lk-rental-calendar',
-		'Nová objednávka',
-		'Nová objednávka (WC)',
-		'manage_options',
-		'post-new.php?post_type=shop_order&source=lk'
 	);
 
 	add_submenu_page(

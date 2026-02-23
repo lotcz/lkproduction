@@ -148,12 +148,12 @@ function lk_rental_render_custom_order_form() {
 
 		$action = isset($_POST['form_action']) ? sanitize_text_field($_POST['form_action']) : null;
 		if ($action === 'preview') {
-			wp_redirect(admin_url('admin.php?page=lk-custom-print-preview&order_id=' . $order->get_id()));
+			wp_redirect(lk_order_get_print_preview_link($order->get_id()));
 			exit;
 		}
 
 		if (empty($order_id)) {
-			wp_redirect(lk_order_get_edit_link($order->get_id()));
+			wp_redirect(lk_order_get_edit_link_custom($order->get_id()));
 			exit;
 		}
 	} elseif (!empty($order_id)) {
@@ -162,10 +162,6 @@ function lk_rental_render_custom_order_form() {
 			echo '<div class="notice notice-error"><p>Objednávka nebyla nalezena!</p></div>';
 			return;
 		}
-		$event_name = lk_order_get_event_name($order);
-		$start_date = lk_order_get_start_date($order);
-		$end_date = lk_order_get_end_date($order);
-		$status = $order->get_status();
 	}
 
 	$all_products = lk_get_public_products($start_date, $end_date, $order_id);
@@ -175,6 +171,11 @@ function lk_rental_render_custom_order_form() {
 	if ($order) {
 		$edit_url = $order->get_edit_order_url();
 		$total_price = $order->get_total();
+		$event_name = lk_order_get_event_name($order);
+		$start_date = lk_order_get_start_date($order);
+		$end_date = lk_order_get_end_date($order);
+		$status = $order->get_status();
+
 		$oi = $order->get_items();
 		foreach ($oi as $item) {
 			$product_id = $item->get_product_id();
@@ -185,21 +186,20 @@ function lk_rental_render_custom_order_form() {
 
 	$days = lk_get_total_days($start_date, $end_date);
 	$heading = $order ? (($status === LK_ORDER_STATE_QUOTE) ? "Cenová nabídka" : "Objednávka") : "Vytvořit cenovou nabídku";
+	$order_statuses = wc_get_order_statuses();
 
 	?>
 	<div class="wrap">
-		<div class="popup-link-container">
-			<h1>
-				<?php echo $heading ?>
-			</h1>
-			<?php
-			if (!empty($edit_url)) {
-				?>
-				<a class="popup-link" href="<?php echo $edit_url ?>" target="_blank">&nbsp;</a>
-				<?php
-			}
+		<h1>
+			<?php echo $heading ?>
+		</h1>
+		<?php
+		if (!empty($edit_url)) {
 			?>
-		</div>
+			<a href="<?php echo $edit_url ?>" class="text-small">Upravit ve WooCommerce</a>
+			<?php
+		}
+		?>
 		<div class="lk-custom-order-form">
 			<form method="post" action="">
 				<input type="hidden" name="items" value=""/>
@@ -225,31 +225,15 @@ function lk_rental_render_custom_order_form() {
 						<div>
 							<label for="order_state">Typ/Stav</label>
 							<select id="order_state" name="order_state">
-								<option
-									value="<?php echo LK_ORDER_STATE_QUOTE ?>"
-									<?php echo $status === LK_ORDER_STATE_QUOTE ? 'selected' : '' ?>
-								>Cenová nabídka
-								</option>
-								<option
-									value="pending"
-									<?php echo $status === 'pending' ? 'selected' : '' ?>
-								>Objednávka - čeká na platbu
-								</option>
-								<option
-									value="processing"
-									<?php echo $status === 'processing' ? 'selected' : '' ?>
-								>Objednávka - zpracovává se
-								</option>
-								<option
-									value="completed"
-									<?php echo $status === 'completed' ? 'selected' : '' ?>
-								>Objednávka - dokončená
-								</option>
-								<option
-									value="cancelled"
-									<?php echo $status === 'cancelled' ? 'selected' : '' ?>
-								>Zrušeno
-								</option>
+								<?php
+								foreach ($order_statuses as $s => $label) {
+									?>
+									<option value="<?php echo esc_attr($s); ?>" <?php selected('wc-' . $status, $s); ?>>
+										<?php echo esc_html($label); ?>
+									</option>
+									<?php
+								}
+								?>
 							</select>
 						</div>
 						<div>
@@ -364,8 +348,8 @@ function lk_render_custom_order_print_preview() {
 
 			body {
 				counter-reset: page;
-				font-family: Inter, Roboto, Arial, sans-serif;
-				font-size: 12pt;
+				font-family: Arial, sans-serif;
+				font-size: 10pt;
 				max-width: 21cm;
 			}
 
@@ -398,7 +382,7 @@ function lk_render_custom_order_print_preview() {
 			}
 
 			h2 {
-				font-size: 14pt;
+				font-size: 12pt;
 			}
 
 			.row {
@@ -523,7 +507,7 @@ function lk_render_custom_order_print_preview() {
 	?>
 	<div class="print-menu">
 		<div>
-			<a href="<?php echo lk_order_get_edit_link($order_id) ?>" class="edit-button">Zpět</a>
+			<a href="<?php echo lk_order_get_edit_link_custom($order_id) ?>" class="edit-button">Zpět</a>
 		</div>
 		<div>
 			<button class="print-button" onclick="window.print()">Vytisknout</button>
@@ -675,5 +659,5 @@ function lk_render_quick_order_meta_box($post_or_order) {
 		? $post_or_order->get_id()
 		: $post_or_order->ID;
 	$url = admin_url('admin.php?page=lk-rental-custom-order-form&order_id=' . $order_id);
-	echo '<a href="' . esc_url($url) . '" class="button button-primary">Otevřít rychlý formulář</a>';
+	echo '<a href="' . esc_url($url) . '" class="button button-primary">Upravit v LK Rent</a>';
 }
