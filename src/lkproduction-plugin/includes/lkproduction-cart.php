@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+	exit;
+}
+
 require_once __DIR__ . '/lk-common.php';
 
 // Append "per day" to the WooCommerce product price HTML

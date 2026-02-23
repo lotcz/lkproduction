@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+	exit;
+}
+
 function lk_get_calendar_events($view_start, $view_end, $product_id = null) {
 	global $wpdb;
 
@@ -146,4 +150,10 @@ function lk_rental_render_calendar($product_id = null) {
 		});
 	</script>
 	<?php
+}
+
+/* RENDER CALENDAR */
+function lk_rental_render_calendar_global() {
+	echo '<h1>Kalendář akcí</h1>';
+	lk_rental_render_calendar();
 }

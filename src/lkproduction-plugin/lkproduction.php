@@ -83,12 +83,6 @@ function lkproduction_admin_scripts() {
 
 }
 
-/* RENDER CALENDAR */
-function lk_rental_render_calendar_global() {
-	echo '<h1>Kalendář akcí</h1>';
-	lk_rental_render_calendar();
-}
-
 // Add LK Rent menu item
 add_action('admin_menu', 'rental_calendar_menu');
 function rental_calendar_menu() {

@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+	exit;
+}
+
 require_once __DIR__ . '/lk-common.php';
 
 // Register the status
@@ -149,7 +153,7 @@ function lk_rental_render_custom_order_form() {
 		}
 
 		if (empty($order_id)) {
-			wp_redirect(lk_order_get_edit_link($order_id));
+			wp_redirect(lk_order_get_edit_link($order->get_id()));
 			exit;
 		}
 	} elseif (!empty($order_id)) {

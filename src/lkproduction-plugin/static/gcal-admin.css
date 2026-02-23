@@ -1,0 +1,140 @@
+/* Hide WooCommerce's default save button — we have our own inside the form */
+p.submit, .woocommerce-save-button { display: none; }
+
+form p.submit {
+	display: block;
+}
+
+.rental-gcal-wrap {
+	max-width: 800px;
+}
+
+.rental-gcal-required {
+	color: #d63638;
+	margin-left: 2px;
+}
+
+/* Setup guide */
+.rental-gcal-guide {
+	background: #f0f6fc;
+	border: 1px solid #c3d9ef;
+	border-radius: 4px;
+	padding: 12px 16px;
+	margin-bottom: 20px;
+}
+
+.rental-gcal-guide summary {
+	cursor: pointer;
+	font-weight: 600;
+	color: #135e96;
+}
+
+.rental-gcal-guide ol {
+	margin: 10px 0 0 20px;
+}
+
+.rental-gcal-guide li {
+	margin-bottom: 6px;
+}
+
+/* JSON textarea */
+.rental-gcal-json-textarea {
+	font-size: 12px;
+	line-height: 1.5;
+	border-radius: 4px;
+	margin-top: 6px;
+}
+
+/* Credentials status badge */
+.rental-gcal-credentials-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 12px;
+	font-size: 13px;
+	margin-bottom: 8px;
+	font-weight: 500;
+}
+
+.rental-gcal-credentials-status.has-creds {
+	background: #edfaef;
+	color: #1a7430;
+	border: 1px solid #86e49d;
+}
+
+.rental-gcal-credentials-status.no-creds {
+	background: #fcf0d4;
+	color: #7a4b00;
+	border: 1px solid #f5c843;
+}
+
+/* Toggle switch */
+.rental-gcal-toggle {
+	position: relative;
+	display: inline-block;
+	width: 44px;
+	height: 24px;
+}
+
+.rental-gcal-toggle input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.rental-gcal-toggle__slider {
+	position: absolute;
+	inset: 0;
+	background-color: #ccc;
+	border-radius: 24px;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.rental-gcal-toggle__slider::before {
+	content: "";
+	position: absolute;
+	height: 18px;
+	width: 18px;
+	left: 3px;
+	bottom: 3px;
+	background-color: white;
+	border-radius: 50%;
+	transition: transform 0.2s;
+}
+
+.rental-gcal-toggle input:checked + .rental-gcal-toggle__slider {
+	background-color: #2271b1;
+}
+
+.rental-gcal-toggle input:checked + .rental-gcal-toggle__slider::before {
+	transform: translateX(20px);
+}
+
+/* Test result */
+.rental-gcal-test-result {
+	display: inline-block;
+	margin-left: 10px;
+	font-style: italic;
+	vertical-align: middle;
+}
+
+.rental-gcal-test-result.success {
+	color: #1a7430;
+}
+
+.rental-gcal-test-result.error {
+	color: #d63638;
+}
+
+/* Danger label */
+.rental-gcal-danger-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 8px;
+	color: #d63638;
+	font-size: 13px;
+	cursor: pointer;
+}

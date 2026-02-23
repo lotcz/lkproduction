@@ -1,5 +1,9 @@
 <?php
 
+if (!defined('ABSPATH')) {
+	exit;
+}
+
 function lk_date($date) {
 	if (empty($date)) return '';
 	$date_format = get_option('date_format');
@@ -25,7 +29,7 @@ function lk_get_total_days($start, $end): int {
 		$date1 = new DateTime($start);
 		$date2 = new DateTime($end);
 		$seconds = $date2->getTimestamp() - $date1->getTimestamp();
-		$diff = (int)ceil($seconds/(60*60*24));
+		$diff = (int)ceil($seconds / (60 * 60 * 24));
 		return ($diff <= 1) ? 1 : $diff;
 	} catch (Exception $e) {
 		error_log("Error when calculating days: " . $e->getMessage());
@@ -97,13 +101,13 @@ function lk_get_valid_order_states(): array {
 }
 
 function lk_get_valid_order_states_sql(): string {
-	$sql_values = array_map(fn ($state) => "'wc-$state'", lk_get_valid_order_states());
+	$sql_values = array_map(fn($state) => "'wc-$state'", lk_get_valid_order_states());
 	return join(",", $sql_values);
 }
 
 // return true if order is in one of our valid states
 function lk_order_is_valid($order): bool {
-	return array_any(lk_get_valid_order_states(), fn ($state) => $state === $order->get_status());
+	return array_any(lk_get_valid_order_states(), fn($state) => $state === $order->get_status());
 }
 
 // return true if order is both valid and has start and end date
@@ -150,7 +154,7 @@ function lk_set_product_total_stock($product_id, $stock) {
 
 /* Get total owned amount of certain product */
 function lk_get_product_total_stock($product_id) {
-	return (int) get_post_meta($product_id, LK_PRODUCT_TOTAL_STOCK_META, true);
+	return (int)get_post_meta($product_id, LK_PRODUCT_TOTAL_STOCK_META, true);
 }
 
 /* Return list of all booked products for certain period */
