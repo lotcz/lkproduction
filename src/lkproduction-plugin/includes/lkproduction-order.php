@@ -76,25 +76,26 @@ function rental_save_general_section_fields($order_id) {
 
 	lk_order_set_start_date($order, $start_date);
 	lk_order_set_end_date($order, $end_date);
-	$order->save();
 
 	// 3. RECALCULATION LOGIC
 	$days = lk_order_get_total_days($order);
 
 	if ($old_days !== $days) {
 		$price = lk_order_get_total_price($order);
-
-		// Force update in DB and object
-		update_post_meta($order_id, '_order_total', $price);
 		$order->set_total($price);
-		$order->save();
 
 		$order->add_order_note(sprintf(
 			__('Cena objednávky přepočítána na %.0f,- pro nový počet dnů: %d', 'lk-production-plugin'),
 			$price,
 			$days
 		));
+
+		$order->save();
+	} else {
+		$order->save_meta_data();
 	}
+
+
 }
 
 // total order price

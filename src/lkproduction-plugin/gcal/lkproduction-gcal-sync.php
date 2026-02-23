@@ -19,6 +19,11 @@ require_once __DIR__ . '/../vendor/autoload.php';
 const LK_GCAL_META_EVENT_ID = '_rental_gcal_event_id';
 
 /**
+ * Order meta key where we store last synced Order hash
+ */
+const LK_GCAL_META_ORDER_HASH = '_rental_gcal_order_hash';
+
+/**
  * Reset Google Event ID associated with order
  */
 function lk_gcal_reset_event_id(WC_Order $order): void {
@@ -57,6 +62,24 @@ function lk_gcal_build_description(WC_Order $order): string {
 	];
 
 	return implode("\n", $lines);
+}
+
+function lk_gcal_calculate_order_hash(WC_Order $order): string {
+	return dechex(crc32(lk_gcal_build_description($order)));
+}
+
+function lk_gcal_get_order_hash(WC_Order $order): string {
+	return $order->get_meta(LK_GCAL_META_ORDER_HASH);
+}
+
+function lk_gcal_update_order_hash(WC_Order $order) {
+	$order->update_meta_data(LK_GCAL_META_ORDER_HASH, lk_gcal_calculate_order_hash($order));
+	$order->save_meta_data();
+}
+
+function lk_gcal_reset_order_hash(WC_Order $order) {
+	$order->delete_meta_data(LK_GCAL_META_ORDER_HASH);
+	$order->save_meta_data();
 }
 
 /**
@@ -140,6 +163,7 @@ function lk_gcal_create_event(WC_Order $order): void {
 	$service = lk_gcal_build_service();
 	$created = $service->events->insert(lk_gcal_get_calendar_id(), $event);
 	lk_gcal_set_event_id($order, $created->getId());
+	lk_gcal_update_order_hash($order);
 }
 
 /**
@@ -167,6 +191,7 @@ function lk_gcal_delete_event(WC_Order $order): void {
 	}
 
 	lk_gcal_reset_event_id($order);
+	lk_gcal_reset_order_hash($order);
 }
 
 /**
@@ -176,22 +201,32 @@ function lk_gcal_delete_event(WC_Order $order): void {
  * @throws Exception on API error.
  */
 function lk_gcal_update_event(WC_Order $order): void {
+	// DELETE WHEN NOT VALID FOR CALENDAR
 	if (!lk_order_is_calendar_valid($order)) {
 		lk_gcal_delete_event($order);
 		return;
 	}
 
+	// CREATE WHEN NO EVENT ID STORED
 	$event_id = lk_gcal_get_event_id($order);
-
 	if (empty($event_id)) {
 		lk_gcal_create_event($order);
 		return;
 	}
 
+	// CHECK ORDER HASH TO NOT PERFORM REDUNDANT UPDATES
+	$new_hash = lk_gcal_calculate_order_hash($order);
+	$existing_hash = lk_gcal_get_order_hash($order);
+
+	if ($new_hash === $existing_hash) {
+		error_log("skipping");
+		return;
+	}
+
+	// LOAD EXISTING EVENT TO PRESERVE FIELDS WE DON'T OWN
 	$calendar_id = lk_gcal_get_calendar_id();
 	$service = lk_gcal_build_service();
 
-	// Fetch the existing event so we preserve any fields we don't own
 	try {
 		$event = $service->events->get($calendar_id, $event_id);
 	} catch (Google\Service\Exception $e) {
@@ -204,8 +239,10 @@ function lk_gcal_update_event(WC_Order $order): void {
 		throw $e;
 	}
 
+	// UPDATE
 	lk_gcal_populate_event($event, $order);
 	$service->events->update($calendar_id, $event_id, $event);
+	lk_gcal_update_order_hash($order);
 }
 
 /**

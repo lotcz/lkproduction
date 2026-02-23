@@ -5,10 +5,6 @@
 /* LK Rent tab icon in product detail */
 #woocommerce-product-data ul.wc-tabs li.rental_inventory_options a:before { content: "\f513"; }
 
-#rental-calendar-global .notice {
-	display: none;
-}
-
 .popup-link-container > * {
 	display: inline-block;
 }
@@ -119,4 +115,18 @@
 
 .lk-custom-order-form .form-footer .total-order-price {
 	font-weight: bold;
+}
+
+/* CALENDAR */
+
+#lk_rent_calendar {
+	background: #fff;
+	padding: 20px;
+	border: 1px solid #ccd0d4;
+	margin-top: 20px;
+}
+
+/* hide ugly notices in calendar */
+#lk_rent_calendar .notice {
+	display: none;
 }

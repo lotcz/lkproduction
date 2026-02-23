@@ -48,10 +48,10 @@ function lk_get_calendar_events($view_start, $view_end, $product_id = null) {
 
 	foreach ($results as $row) {
 		$start_iso = str_replace('T', ' ', $row->start_date);
-		$end_iso   = str_replace('T', ' ', $row->end_date);
+		$end_iso = str_replace('T', ' ', $row->end_date);
 
 		$color = '#95a5a6';
-		switch ( $row->post_status ) {
+		switch ($row->post_status) {
 			case 'wc-pending':
 				$color = '#9b59b6';
 				break;
@@ -73,11 +73,11 @@ function lk_get_calendar_events($view_start, $view_end, $product_id = null) {
 		}
 
 		$events[] = [
-			'id'    => $row->ID,
+			'id' => $row->ID,
 			'title' => $name,
 			'start' => $start_iso,
-			'end'   => $end_iso,
-			'url'   => html_entity_decode(lk_order_get_edit_link_custom($row->ID)),
+			'end' => $end_iso,
+			'url' => html_entity_decode(lk_order_get_edit_link_custom($row->ID)),
 			'color' => $color,
 			'allDay' => false
 		];
@@ -87,7 +87,7 @@ function lk_get_calendar_events($view_start, $view_end, $product_id = null) {
 }
 
 // Create a simple AJAX endpoint for the calendar
-add_action('wp_ajax_get_rental_calendar_events', function() {
+add_action('wp_ajax_get_rental_calendar_events', function () {
 	$view_start = sanitize_text_field($_GET['start']);
 	$view_end = sanitize_text_field($_GET['end']);
 	$product_id = isset($_GET['product_id']) ? absint($_GET['product_id']) : null;
@@ -98,15 +98,12 @@ add_action('wp_ajax_get_rental_calendar_events', function() {
 // Render the Page
 function lk_rental_render_calendar($product_id = null) {
 	?>
-	<div class="clear"></div>
-	<div class="wrap">
-		<div id="rental-calendar-global" style="background: #fff; padding: 20px; border: 1px solid #ccd0d4; margin-top: 20px;"></div>
-	</div>
+	<div id="lk_rent_calendar"></div>
 
 	<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 	<script>
-		document.addEventListener('DOMContentLoaded', function() {
-			var calendarEl = document.getElementById('rental-calendar-global');
+		document.addEventListener('DOMContentLoaded', function () {
+			var calendarEl = document.getElementById('lk_rent_calendar');
 			var calendar = new FullCalendar.Calendar(calendarEl, {
 				locale: 'cs',
 				buttonText: {
@@ -134,7 +131,7 @@ function lk_rental_render_calendar($product_id = null) {
 						product_id: <?php echo isset($product_id) ? $product_id : 'null'; ?>
 					}
 				},
-				loading: function(isLoading) {
+				loading: function (isLoading) {
 					if (isLoading) {
 						calendarEl.style.opacity = '0.5';
 					} else {
@@ -144,7 +141,7 @@ function lk_rental_render_calendar($product_id = null) {
 			});
 			calendar.render();
 
-			jQuery(document).on('sortstop', '#poststuff', function() {
+			jQuery(document).on('sortstop', '#poststuff', function () {
 				calendar.updateSize();
 			});
 		});
@@ -154,6 +151,10 @@ function lk_rental_render_calendar($product_id = null) {
 
 /* RENDER CALENDAR */
 function lk_rental_render_calendar_global() {
-	echo '<h1>Kalendář akcí</h1>';
-	lk_rental_render_calendar();
+	?>
+	<div class="wrap">
+		<h1>Kalendář akcí</h1>
+		<?php lk_rental_render_calendar(); ?>
+	</div>
+	<?php
 }
