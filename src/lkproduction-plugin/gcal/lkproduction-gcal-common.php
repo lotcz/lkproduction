@@ -4,6 +4,8 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
+require_once __DIR__ . '/../includes/lk-common.php';
+
 const LK_GCAL_OPTION_CALENDAR_ID = 'rental_gcal_calendar_id';
 const LK_GCAL_OPTION_CREDENTIALS = 'rental_gcal_service_account_json';
 const LK_GCAL_OPTION_ENABLED = 'rental_gcal_enabled';

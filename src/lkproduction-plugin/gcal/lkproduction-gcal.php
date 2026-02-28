@@ -27,7 +27,7 @@ add_action(
 				function () {
 					check_ajax_referer('rental_gcal_test_nonce', 'nonce');
 
-					if (!current_user_can('manage_woocommerce')) {
+					if (!lk_user_can_manage()) {
 						wp_send_json_error(['message' => __('Permission denied.', 'rental-gcal')]);
 					}
 

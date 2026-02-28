@@ -4,6 +4,8 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
+require_once __DIR__ . '/lk-common.php';
+
 function lk_get_calendar_events($view_start, $view_end, $product_id = null) {
 	global $wpdb;
 

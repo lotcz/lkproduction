@@ -4,8 +4,8 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-require_once __DIR__ . '/lkproduction-calendar.php';
 require_once __DIR__ . '/lk-common.php';
+require_once __DIR__ . '/lkproduction-calendar.php';
 
 /**
  * Add a custom "Rental Stock" tab to the Product Data box

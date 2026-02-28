@@ -122,7 +122,7 @@ function lk_save_order($order_id = null, $event_name = null, $start_date = null,
 
 // Render the custom order page
 function lk_rental_render_custom_order_form() {
-	if (!current_user_can('manage_woocommerce')) {
+	if (!lk_user_can_manage()) {
 		wp_die('Unauthorized');
 	}
 
@@ -325,7 +325,7 @@ function lk_rental_render_custom_order_form() {
 }
 
 function lk_render_custom_order_print_preview() {
-	if (!current_user_can('manage_woocommerce')) {
+	if (!lk_user_can_manage()) {
 		wp_die('Unauthorized');
 	}
 
@@ -626,7 +626,7 @@ add_action('wp_ajax_lk_load_product_bookings', 'handle_admin_ajax_request');
 function handle_admin_ajax_request() {
 	check_ajax_referer('lk_admin_ajax_nonce', 'security');
 
-	if (!current_user_can('manage_options')) {
+	if (!lk_user_can_manage()) {
 		wp_send_json_error('Unauthorized', 403);
 	}
 

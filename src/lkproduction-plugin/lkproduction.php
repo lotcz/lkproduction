@@ -2,7 +2,7 @@
 /**
  * Plugin Name: LK Production Rent
  * Description: Rezervační systém pro LK Production
- * Version: 1.1.1
+ * Version: 1.1.2
  * Author: Karel
  * Text Domain: lkproduction
  * Requires at least: 6.0
@@ -16,6 +16,7 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
+require_once __DIR__ . '/includes/lk-common.php';
 require_once __DIR__ . '/includes/lkproduction-cart.php';
 require_once __DIR__ . '/includes/lkproduction-product.php';
 require_once __DIR__ . '/includes/lkproduction-order.php';
@@ -89,7 +90,7 @@ function rental_calendar_menu() {
 	add_menu_page(
 		'Kalendář akcí',
 		'LK Rent',
-		'manage_options',
+		LK_WP_ADMIN_CAPABILITY,
 		'lk-rental-calendar',
 		'lk_rental_render_calendar_global',
 		'dashicons-calendar-alt',
@@ -104,7 +105,7 @@ function rental_calendar_submenu_links() {
 		'lk-rental-calendar',
 		'Kalendář akcí',
 		'Kalendář akcí',
-		'manage_options',
+		LK_WP_ADMIN_CAPABILITY,
 		'lk-rental-calendar',
 		'lk_rental_render_calendar_global'
 	);
@@ -113,7 +114,7 @@ function rental_calendar_submenu_links() {
 		'lk-rental-calendar',
 		'Vytvořit cenovou nabídku',
 		'Vytvořit cenovou nabídku',
-		'manage_options',
+		LK_WP_ADMIN_CAPABILITY,
 		'lk-rental-custom-order-form',
 		'lk_rental_render_custom_order_form'
 	);
@@ -122,7 +123,7 @@ function rental_calendar_submenu_links() {
 		'lk-rental-calendar',
 		'Objednávky',
 		'Objednávky',
-		'manage_options',
+		LK_WP_ADMIN_CAPABILITY,
 		'edit.php?post_type=shop_order&source=lk'
 	);
 
@@ -130,7 +131,7 @@ function rental_calendar_submenu_links() {
 		null,
 		'Náhled',
 		'Náhled',
-		'manage_woocommerce',
+		LK_WP_ADMIN_CAPABILITY,
 		'lk-custom-print-preview',
 		'lk_render_custom_order_print_preview'
 	);

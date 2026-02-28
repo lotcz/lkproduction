@@ -4,6 +4,12 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
+const LK_WP_ADMIN_CAPABILITY = 'manage_woocommerce';
+
+function lk_user_can_manage() {
+	return current_user_can(LK_WP_ADMIN_CAPABILITY);
+}
+
 function lk_parse_date(string|null $raw): DateTime|null {
 	$raw = trim($raw);
 

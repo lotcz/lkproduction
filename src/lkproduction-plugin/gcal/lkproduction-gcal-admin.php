@@ -203,7 +203,7 @@ function lk_gcal_maybe_save_settings() {
 		wp_die(esc_html__('Security check failed.', 'rental-gcal'));
 	}
 
-	if (!current_user_can('manage_woocommerce')) {
+	if (!lk_user_can_manage()) {
 		wp_die(esc_html__('Permission denied.', 'rental-gcal'));
 	}
 
