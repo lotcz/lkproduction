@@ -178,6 +178,7 @@ function lk_rental_render_custom_order_form() {
 
 	if ($order) {
 		$edit_url = $order->get_edit_order_url();
+		$duplicate_url = lk_order_get_edit_link_custom($order_id, true);
 		$total_price = $order->get_total();
 		$event_name = lk_order_get_event_name($order);
 		$start_date = lk_order_get_start_date($order);
@@ -201,13 +202,20 @@ function lk_rental_render_custom_order_form() {
 		<h1>
 			<?php echo $heading ?>
 		</h1>
+		<div>
 		<?php
-		if (!empty($edit_url)) {
-			?>
-			<a href="<?php echo $edit_url ?>" class="text-small">Upravit ve WooCommerce</a>
-			<?php
-		}
+			if (!empty($edit_url)) {
+				?>
+				<a href="<?php echo $edit_url ?>" class="text-small">Upravit ve WooCommerce</a>
+				<?php
+			}
+			if (!empty($duplicate_url)) {
+				?>
+				<a href="<?php echo $duplicate_url ?>" class="text-small">Duplikovat</a>
+				<?php
+			}
 		?>
+		</div>
 		<div class="lk-custom-order-form">
 			<form method="post" action="">
 				<input type="hidden" name="items" value=""/>
