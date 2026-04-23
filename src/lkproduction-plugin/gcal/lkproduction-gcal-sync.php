@@ -46,7 +46,7 @@ function lk_gcal_get_event_id(WC_Order $order): string {
 	return $order->get_meta(LK_GCAL_META_EVENT_ID);
 }
 
-function lk_gcal_build_summary(WC_Order $order): string {
+function lk_gcal_build_name(WC_Order $order): string {
 	$event_name = lk_order_get_event_name($order);
 	return empty($event_name) ? sprintf("Objednávka #%s", $order->get_order_number()) : $event_name;
 }
@@ -55,11 +55,41 @@ function lk_gcal_build_description(WC_Order $order): string {
 	$lines = [
 		sprintf("Od: %s", lk_datetime(lk_order_get_start_date($order))),
 		sprintf("Do: %s", lk_datetime(lk_order_get_end_date($order))),
+		"",
 		sprintf("Zákazník: %s", $order->get_formatted_billing_full_name()),
 		sprintf("Email: %s", $order->get_billing_email()),
 		sprintf("Telefon: %s", $order->get_billing_phone()),
-		sprintf("Objednávka: %s", $order->get_edit_order_url())
+		""
 	];
+
+	$order_items = $order->get_items();
+	$grouped = array();
+
+	foreach ($order_items as $item) {
+		$product = $item->get_product();
+		$category_ids = $product->get_category_ids();
+		$category = get_term($category_ids[0], 'product_cat');
+		$category_name = $category->name;
+
+		if (!isset($grouped[$category_name])) {
+			$grouped[$category_name] = array();
+		}
+
+		$grouped[$category_name][] = array(
+			'title' => $product->get_name(),
+			'qty' => $item->get_quantity()
+		);
+	}
+
+	foreach ($grouped as $category_name => $items) {
+		$lines[] = $category_name;
+		foreach ($items as $item) {
+			$lines[] = sprintf("%s: %d ks", $item['title'], $item['qty']);
+		}
+		$lines[] = "";
+	}
+
+	$lines[] = sprintf("Odkaz: %s", $order->get_edit_order_url());
 
 	return implode("\n", $lines);
 }
@@ -105,7 +135,7 @@ function lk_gcal_populate_event(Google\Service\Calendar\Event $event, WC_Order $
 
 	$tz = wp_timezone();
 
-	$event->setSummary(lk_gcal_build_summary($order));
+	$event->setSummary(lk_gcal_build_name($order));
 	$event->setDescription(lk_gcal_build_description($order));
 
 	$event->setStart(new Google\Service\Calendar\EventDateTime([

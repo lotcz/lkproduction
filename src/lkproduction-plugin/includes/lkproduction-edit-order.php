@@ -478,29 +478,23 @@ function lk_render_custom_order_print_preview() {
 	$days = lk_order_get_total_days($order);
 	$order_items = $order->get_items();
 	$grouped = array();
-	$added = [];
 
 	foreach ($order_items as $item) {
-		$product_id = $item->get_product_id();
+		$product = $item->get_product();
+		$category_ids = $product->get_category_ids();
+		$category = get_term($category_ids[0], 'product_cat');
+		$category_name = $category->name;
 
-		if (!isset($added[$product_id])) {
-			$product = $item->get_product();
-			$category_ids = $product->get_category_ids();
-			$category = get_term($category_ids[0], 'product_cat');
-			$category_name = $category->name;
-
-			if (!isset($grouped[$category_name])) {
-				$grouped[$category_name] = array();
-			}
-
-			$grouped[$category_name][] = array(
-				'title' => $product->get_name(),
-				'desc' => $product->get_short_description(),
-				'price' => (float) $product->get_price(),
-				'qty' => $item->get_quantity()
-			);
+		if (!isset($grouped[$category_name])) {
+			$grouped[$category_name] = array();
 		}
-		$added[$product_id] = true;
+
+		$grouped[$category_name][] = array(
+			'title' => $product->get_name(),
+			'desc' => $product->get_short_description(),
+			'price' => (float) $product->get_price(),
+			'qty' => $item->get_quantity()
+		);
 	}
 
 	?>
