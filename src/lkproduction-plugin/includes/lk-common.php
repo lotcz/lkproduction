@@ -170,8 +170,10 @@ function lk_order_get_total_price($order): float {
 	return lk_order_get_daily_price($order) * lk_order_get_total_days($order);
 }
 
-function lk_order_get_edit_link_custom($order_id): string {
-	return admin_url("admin.php?page=lk-rental-custom-order-form&order_id=$order_id");
+function lk_order_get_edit_link_custom($order_id, $duplicate = false): string {
+	$url = 'admin.php?page=lk-rental-custom-order-form&order_id=' . $order_id;
+	if ($duplicate) $url .= '&duplicate=true';
+	return admin_url($url);
 }
 
 function lk_order_get_print_preview_link($order_id): string {

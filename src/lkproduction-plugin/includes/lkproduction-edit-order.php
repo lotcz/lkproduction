@@ -5,6 +5,7 @@ if (!defined('ABSPATH')) {
 }
 
 require_once __DIR__ . '/lk-common.php';
+require_once __DIR__ . '/lkproduction-order.php';
 
 // Register the status
 add_action('init', function () {
@@ -127,6 +128,13 @@ function lk_rental_render_custom_order_form() {
 	}
 
 	$order_id = empty($_GET['order_id']) ? null : $_GET['order_id'];
+
+	if (!empty($_GET['duplicate'])) {
+		$new_order_id = lk_production_duplicate_woo_order($order_id);
+		wp_redirect(lk_order_get_edit_link_custom($new_order_id));
+		exit;
+	}
+
 	$order = null;
 	$event_name = '';
 	$start_date = '';
@@ -651,6 +659,12 @@ function lk_render_quick_order_meta_box($post_or_order) {
 	$order_id = is_a($post_or_order, 'WC_Order')
 		? $post_or_order->get_id()
 		: $post_or_order->ID;
-	$url = admin_url('admin.php?page=lk-rental-custom-order-form&order_id=' . $order_id);
-	echo '<a href="' . esc_url($url) . '" class="button button-primary">Upravit v LK Rent</a>';
+	$url = esc_url(lk_order_get_edit_link_custom($order_id));
+	$duplicateUrl = esc_url(lk_order_get_edit_link_custom($order_id, true));
+	?>
+		<div class="lk-quick-menu">
+			<a href="<?php echo $url ?>" class="button button-primary">Upravit v LK Rent</a>
+			<a href="<?php echo $duplicateUrl ?>" class="button button-primary">Duplikovat</a>
+		</div>
+	<?php
 }

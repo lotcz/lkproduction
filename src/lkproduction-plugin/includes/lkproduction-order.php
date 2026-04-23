@@ -252,13 +252,119 @@ function lk_admin_item_overbooking_warning($item_id, $item, $product) {
 	if ($total_booked > $total_owned) {
 		$shortage = $total_booked - $total_owned;
 		?>
-		<div class="rental-overbooking-alert" style="margin-top: 5px; padding: 5px 8px; background-color: #fbeaea; border-left: 3px solid #d63638; color: #d63638; font-size: 11px; display: inline-block;">
+		<div class="rental-overbooking-alert"
+			style="margin-top: 5px; padding: 5px 8px; background-color: #fbeaea; border-left: 3px solid #d63638; color: #d63638; font-size: 11px; display: inline-block;">
 			<strong>⚠️ Pozor: Překročený stav skladu!</strong><br>
-			V tomto termínu je celkem rezervováno <?php echo $booked_elsewhere?> ks,
+			V tomto termínu je celkem rezervováno <?php echo $booked_elsewhere ?> ks,
 			nyní rezervujete dalších <?php echo $qty ?> ks,
 			ale vlastníte pouze <?php echo $total_owned ?> ks
-			(Chybí: <strong><?php echo $shortage?> ks</strong>)
+			(Chybí: <strong><?php echo $shortage ?> ks</strong>)
 		</div>
 		<?php
 	}
+}
+
+/**
+ * Duplicate an existing WooCommerce order.
+ *
+ * @param int $order_id The ID of the order to duplicate.
+ * @return int|WP_Error  New order ID on success, WP_Error on failure.
+ */
+function lk_production_duplicate_woo_order(int $order_id) {
+	$original = wc_get_order($order_id);
+
+	if (!$original) {
+		return new WP_Error('invalid_order', __('Order not found.', 'lkproduction-plugin'));
+	}
+
+	// --- Create the new order ---
+	$new_order = wc_create_order([
+		'customer_id' => $original->get_customer_id(),
+		'customer_note' => $original->get_customer_note(),
+		'created_via' => 'duplicate',
+		'status' => 'pending',
+	]);
+
+	if (is_wp_error($new_order)) {
+		return $new_order;
+	}
+
+	// --- Copy line items (products) ---
+	foreach ($original->get_items() as $item) {
+		$product = $item->get_product();
+		$new_item = new WC_Order_Item_Product();
+
+		$new_item->set_props([
+			'product' => $product,
+			'quantity' => $item->get_quantity(),
+			'variation_id' => $item->get_variation_id(),
+			//'variation' => $item->get_variation(),
+			'subtotal' => $item->get_subtotal(),
+			'total' => $item->get_total(),
+			'tax_class' => $item->get_tax_class(),
+		]);
+
+		$new_item->set_backorder_meta();
+		$new_order->add_item($new_item);
+	}
+
+	// --- Copy shipping items ---
+	foreach ($original->get_items('shipping') as $shipping) {
+		$new_shipping = new WC_Order_Item_Shipping();
+		$new_shipping->set_props([
+			'method_title' => $shipping->get_method_title(),
+			'method_id' => $shipping->get_method_id(),
+			'instance_id' => $shipping->get_instance_id(),
+			'total' => $shipping->get_total(),
+			'taxes' => $shipping->get_taxes(),
+		]);
+		$new_order->add_item($new_shipping);
+	}
+
+	// --- Copy fee items ---
+	foreach ($original->get_items('fee') as $fee) {
+		$new_fee = new WC_Order_Item_Fee();
+		$new_fee->set_props([
+			'name' => $fee->get_name(),
+			'tax_class' => $fee->get_tax_class(),
+			'total' => $fee->get_total(),
+			'taxes' => $fee->get_taxes(),
+		]);
+		$new_order->add_item($new_fee);
+	}
+
+	// --- Copy coupon items ---
+	foreach ($original->get_items('coupon') as $coupon) {
+		$new_coupon = new WC_Order_Item_Coupon();
+		$new_coupon->set_props([
+			'code' => $coupon->get_code(),
+			'discount' => $coupon->get_discount(),
+			'discount_tax' => $coupon->get_discount_tax(),
+		]);
+		$new_order->add_item($new_coupon);
+	}
+
+	// --- Copy addresses ---
+	$new_order->set_address($original->get_address('billing'), 'billing');
+	$new_order->set_address($original->get_address('shipping'), 'shipping');
+
+	// --- Copy payment & totals ---
+	$new_order->set_payment_method($original->get_payment_method());
+	$new_order->set_payment_method_title($original->get_payment_method_title());
+	$new_order->set_currency($original->get_currency());
+	$new_order->set_prices_include_tax($original->get_prices_include_tax());
+	$new_order->set_discount_total($original->get_discount_total());
+	$new_order->set_discount_tax($original->get_discount_tax());
+	$new_order->set_shipping_total($original->get_shipping_total());
+	$new_order->set_shipping_tax($original->get_shipping_tax());
+	$new_order->set_cart_tax($original->get_cart_tax());
+	$new_order->set_total($original->get_total());
+
+	// --- Store a reference to the original order ---
+	$new_order->update_meta_data('_duplicated_from', $order_id);
+
+	$new_order->calculate_totals();
+	$new_order->save();
+
+	return $new_order->get_id();
 }
