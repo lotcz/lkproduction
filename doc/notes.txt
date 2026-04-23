@@ -1,14 +1,5 @@
-POZOR!
-------
-
 - chyba při pokusu o editaci stránky! - např. https://lkproduction.cz/wp-admin/post.php?post=466&action=edit
 - používá se jen 6 z 24 pluginů
-
-ZMĚNY V THEME
------------
-
-functions.php - odebrat skrývání tlačítka Koupit
-style.css - odebrat štítek "/ den"
 
 PRYČ
 ----
@@ -47,10 +38,3 @@ PONECHAT
 - SiteOrigin Widgets Bundle - titulní stránka
 - Custom Facebook Feed Pro Personal - na titulní stránce
 - Yoast SEO - aktualizovat a konfigurovat
-
-PŘIDAT
-------
-
-- Tawk.to
-- WooKarel - Categories Blocks
-- LK Production Rent

@@ -496,13 +496,12 @@ function lk_render_custom_order_print_preview() {
 			$grouped[$category_name][] = array(
 				'title' => $product->get_name(),
 				'desc' => $product->get_short_description(),
-				'price' => $product->get_price(),
+				'price' => (float) $product->get_price(),
 				'qty' => $item->get_quantity()
 			);
 		}
 		$added[$product_id] = true;
 	}
-
 
 	?>
 	<div class="print-menu">

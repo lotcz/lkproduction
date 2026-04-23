@@ -219,7 +219,6 @@ function lk_gcal_update_event(WC_Order $order): void {
 	$existing_hash = lk_gcal_get_order_hash($order);
 
 	if ($new_hash === $existing_hash) {
-		error_log("skipping");
 		return;
 	}
 

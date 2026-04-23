@@ -156,6 +156,11 @@ function lk_rental_render_calendar_global() {
 	?>
 	<div class="wrap">
 		<h1>Kalendář akcí</h1>
+		<div>
+			<a href="http://lkproduction.loc/wp-admin/admin.php?page=lk-rental-custom-order-form" class="page-title-action">
+				Přidat novou cenovou nabídku nebo objednávku
+			</a>
+		</div>
 		<?php lk_rental_render_calendar(); ?>
 	</div>
 	<?php
