@@ -2,7 +2,7 @@
 /**
  * Plugin Name: LK Production Rent
  * Description: Rezervační systém pro LK Production
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author: Karel
  * Text Domain: lkproduction
  * Requires at least: 6.0
@@ -69,18 +69,26 @@ function lkproduction_admin_scripts() {
 		filemtime(plugin_dir_path(__FILE__) . '/static/lkproduction-admin.css')
 	);
 
+	// Select2 is already bundled with WooCommerce
+	wp_enqueue_style( 'woocommerce_admin_styles' );
+	wp_enqueue_script( 'wc-enhanced-select' );
+
 	wp_enqueue_script(
 		'lkproduction-custom-form-script',
 		plugin_dir_url(__FILE__) . '/static/custom-order-form.js',
-		[],
+		['jquery', 'wc-enhanced-select'],
 		filemtime(plugin_dir_path(__FILE__) . '/static/custom-order-form.js')
 	);
 
 	// 5. Localize the script to pass the AJAX URL and a Nonce to JS
-	wp_localize_script('lkproduction-custom-form-script', 'lk_admin_ajax_obj', [
-		'ajax_url' => admin_url('admin-ajax.php'),
-		'nonce' => wp_create_nonce('lk_admin_ajax_nonce'),
-	]);
+	wp_localize_script(
+		'lkproduction-custom-form-script',
+		'lk_admin_ajax_obj',
+		[
+			'ajax_url' => admin_url('admin-ajax.php'),
+			'nonce' => wp_create_nonce('lk_admin_ajax_nonce'),
+		]
+	);
 
 }
 
@@ -172,3 +180,51 @@ add_action( 'woocommerce_new_order', 'lk_production_auto_create_user_from_order_
 
 // Admin order creation - use a later priority (999) to run after WooCommerce's own save
 add_action( 'woocommerce_process_shop_order_meta', 'lk_production_auto_create_user_from_order_id', 999, 1 );
+
+add_action( 'wp_ajax_my_create_customer', 'my_ajax_create_customer' );
+
+function my_ajax_create_customer() {
+	check_ajax_referer( 'lk_admin_ajax_nonce', 'nonce' );
+
+	if ( ! current_user_can( 'edit_shop_orders' ) ) {
+		wp_send_json_error( __( 'Permission denied.', 'my-plugin' ) );
+	}
+
+	$email      = sanitize_email( $_POST['email'] ?? '' );
+	$first_name = sanitize_text_field( $_POST['first_name'] ?? '' );
+	$last_name  = sanitize_text_field( $_POST['last_name'] ?? '' );
+	$phone      = sanitize_text_field( $_POST['phone'] ?? '' );
+
+	if ( ! is_email( $email ) ) {
+		wp_send_json_error( __( 'Invalid email address.', 'my-plugin' ) );
+	}
+
+	if ( email_exists( $email ) ) {
+		wp_send_json_error( __( 'A customer with this email already exists.', 'my-plugin' ) );
+	}
+
+	$username    = wc_create_new_customer_username( $email, [
+		'first_name' => $first_name,
+		'last_name'  => $last_name,
+	]);
+	$customer_id = wc_create_new_customer( $email, $username, wp_generate_password(), [
+		'first_name' => $first_name,
+		'last_name'  => $last_name,
+	]);
+
+	if ( is_wp_error( $customer_id ) ) {
+		wp_send_json_error( $customer_id->get_error_message() );
+	}
+
+	update_user_meta( $customer_id, 'first_name',         $first_name );
+	update_user_meta( $customer_id, 'last_name',          $last_name );
+	update_user_meta( $customer_id, 'billing_first_name', $first_name );
+	update_user_meta( $customer_id, 'billing_last_name',  $last_name );
+	update_user_meta( $customer_id, 'billing_email',      $email );
+	update_user_meta( $customer_id, 'billing_phone',      $phone );
+
+	wp_send_json_success([
+		'id'    => $customer_id,
+		'label' => sprintf( '%s %s (#%d – %s)', $first_name, $last_name, $customer_id, $email ),
+	]);
+}

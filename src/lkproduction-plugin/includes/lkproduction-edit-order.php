@@ -97,7 +97,7 @@ function lk_get_public_products($view_start = null, $view_end = null, $exclude_o
 	return $categories;
 }
 
-function lk_save_order($order_id = null, $event_name = null, $start_date = null, $end_date = null, $status = LK_ORDER_STATE_QUOTE, $items = []) {
+function lk_save_order($order_id = null, $customer_id = null, $event_name = null, $start_date = null, $end_date = null, $status = LK_ORDER_STATE_QUOTE, $items = []) {
 	$order = empty($order_id) ? wc_create_order() : wc_get_order($order_id);
 
 	lk_order_set_event_name($order, $event_name);
@@ -115,6 +115,7 @@ function lk_save_order($order_id = null, $event_name = null, $start_date = null,
 	}
 
 	$order->calculate_totals();
+	$order->set_customer_id($customer_id);
 	$order->set_status($status);
 	$order->save();
 
@@ -136,6 +137,8 @@ function lk_rental_render_custom_order_form() {
 	}
 
 	$order = null;
+	$customer_id = null;
+	$customer_name = null;
 	$event_name = '';
 	$start_date = '';
 	$end_date = '';
@@ -144,6 +147,7 @@ function lk_rental_render_custom_order_form() {
 	$total_price = 0;
 
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		$customer_id = isset($_POST['customer_id']) ? sanitize_text_field($_POST['customer_id']) : null;
 		$event_name = isset($_POST['event_name']) ? sanitize_text_field($_POST['event_name']) : null;
 		$start_date = isset($_POST['start_date']) ? sanitize_text_field($_POST['start_date']) : null;
 		$end_date = isset($_POST['end_date']) ? sanitize_text_field($_POST['end_date']) : null;
@@ -152,7 +156,7 @@ function lk_rental_render_custom_order_form() {
 		$itemsJson = isset($_POST['items']) ? stripslashes_deep($_POST['items']) : '[]';
 		$items = json_decode($itemsJson);
 
-		$order = lk_save_order($order_id, $event_name, $start_date, $end_date, $status, $items);
+		$order = lk_save_order($order_id, $customer_id, $event_name, $start_date, $end_date, $status, $items);
 
 		$action = isset($_POST['form_action']) ? sanitize_text_field($_POST['form_action']) : null;
 		if ($action === 'preview') {
@@ -180,6 +184,7 @@ function lk_rental_render_custom_order_form() {
 		$edit_url = $order->get_edit_order_url();
 		$duplicate_url = lk_order_get_edit_link_custom($order_id, true);
 		$total_price = $order->get_total();
+		$customer_id = $order->get_customer_id();
 		$event_name = lk_order_get_event_name($order);
 		$start_date = lk_order_get_start_date($order);
 		$end_date = lk_order_get_end_date($order);
@@ -193,6 +198,19 @@ function lk_rental_render_custom_order_form() {
 		}
 	}
 
+	if ($customer_id) {
+		$user = get_userdata($customer_id);
+		if ($user) {
+			$customer_name = sprintf(
+				'%s %s (#%d – %s)',
+				$user->first_name,
+				$user->last_name,
+				$customer_id,
+				$user->user_email
+			);
+		}
+	}
+
 	$days = lk_get_total_days($start_date, $end_date);
 	$heading = $order ? (($status === LK_ORDER_STATE_QUOTE) ? "Cenová nabídka" : "Objednávka") : "Vytvořit cenovou nabídku";
 	$order_statuses = wc_get_order_statuses();
@@ -203,7 +221,7 @@ function lk_rental_render_custom_order_form() {
 			<?php echo $heading ?>
 		</h1>
 		<div>
-		<?php
+			<?php
 			if (!empty($edit_url)) {
 				?>
 				<a href="<?php echo $edit_url ?>" class="text-small">Upravit ve WooCommerce</a>
@@ -214,13 +232,78 @@ function lk_rental_render_custom_order_form() {
 				<a href="<?php echo $duplicate_url ?>" class="text-small">Duplikovat</a>
 				<?php
 			}
-		?>
+			?>
 		</div>
 		<div class="lk-custom-order-form">
-			<form method="post" action="">
+			<form
+				id="custom_order_form"
+				method="post"
+				action=""
+				data-existing_customer_id="<?php echo $customer_id ?>"
+				data-existing_customer_name="<?php echo $customer_name ?>"
+			>
 				<input type="hidden" name="items" value=""/>
 				<input type="hidden" name="order_id" value="<?php echo $order_id ?>"/>
 				<input type="hidden" name="form_action" value="save"/>
+
+				<div class="form-cols">
+					<div class="form-col" style="min-width:250px;">
+						<label for="my_customer_search">Zákazník</label>
+						<select id="my_customer_search"
+							name="customer_id"
+							class="wc-customer-search"
+							style="width: 100%;"
+							data-placeholder="Hledat..."
+							data-allow_clear="true">
+						</select>
+					</div>
+					<div>
+						<br>
+						<a href="#" id="my_create_customer_toggle" style="display:inline-block; margin-top:8px;">
+							+ Vytvořit
+						</a>
+					</div>
+				</div>
+
+				<div>
+					<!-- Inline create form (hidden by default) -->
+					<div id="my_new_customer_form"
+						style="display:none; margin-top:12px; padding:12px; border:1px solid #ddd; background:#f9f9f9;">
+						<h4 style="margin:0 0 10px;">Nový zákazník</h4>
+
+						<p>
+							<label>
+								Jméno<br>
+								<input type="text" id="new_customer_first_name" style="width:100%;">
+							</label>
+						</p>
+						<p>
+							<label>
+								Příjmení<br>
+								<input type="text" id="new_customer_last_name" style="width:100%;">
+							</label>
+						</p>
+						<p>
+							<label>
+								<?php esc_html_e('Email', 'my-plugin'); ?><br>
+								<input type="email" id="new_customer_email" style="width:100%;">
+							</label>
+						</p>
+						<p>
+							<label>
+								Telefon<br>
+								<input type="text" id="new_customer_phone" style="width:100%;">
+							</label>
+						</p>
+
+						<button type="button" id="my_create_customer_btn" class="button button-primary">
+							Vytvořit
+						</button>
+						<span id="my_create_customer_spinner" class="spinner" style="float:none; margin:0 5px;"></span>
+						<span id="my_create_customer_error" style="color:red;"></span>
+					</div>
+				</div>
+
 				<div class="form-cols">
 					<div class="form-col">
 						<div>
@@ -508,7 +591,7 @@ function lk_render_custom_order_print_preview() {
 		$grouped[$category_name][] = array(
 			'title' => $product->get_name(),
 			'desc' => $product->get_short_description(),
-			'price' => (float) $product->get_price(),
+			'price' => (float)$product->get_price(),
 			'qty' => $item->get_quantity()
 		);
 	}
@@ -670,9 +753,9 @@ function lk_render_quick_order_meta_box($post_or_order) {
 	$url = esc_url(lk_order_get_edit_link_custom($order_id));
 	$duplicateUrl = esc_url(lk_order_get_edit_link_custom($order_id, true));
 	?>
-		<div class="lk-quick-menu">
-			<a href="<?php echo $url ?>" class="button button-primary">Upravit v LK Rent</a>
-			<a href="<?php echo $duplicateUrl ?>" class="button button-primary">Duplikovat</a>
-		</div>
+	<div class="lk-quick-menu">
+		<a href="<?php echo $url ?>" class="button button-primary">Upravit v LK Rent</a>
+		<a href="<?php echo $duplicateUrl ?>" class="button button-primary">Duplikovat</a>
+	</div>
 	<?php
 }

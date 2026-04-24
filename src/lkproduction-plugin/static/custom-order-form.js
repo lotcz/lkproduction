@@ -18,7 +18,7 @@ function lkToggleClass(el, css, active) {
 	}
 }
 
-function lkFormatMoney (value) {
+function lkFormatMoney(value) {
 	if (isNaN(value)) return '--';
 	return value.toLocaleString('cs-CZ', {style: 'currency', currency: 'CZK', maximumFractionDigits: 0});
 }
@@ -78,7 +78,7 @@ window.addEventListener(
 			const end = new Date(end_date.value).getTime();
 			if (isNaN(start) || isNaN(end)) return 1;
 			const diff = end - start;
-			return Math.max(1, Math.ceil(diff/(1000*60*60*24)));
+			return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 		}
 
 		const getRowQty = (row) => {
@@ -200,3 +200,80 @@ window.addEventListener(
 		);
 	}
 );
+
+jQuery(function ($) {
+
+	// Toggle the new customer form
+	$('#my_create_customer_toggle').on('click', function (e) {
+		e.preventDefault();
+		$('#my_new_customer_form').slideToggle();
+	});
+
+	// Create new customer via AJAX
+	$('#my_create_customer_btn').on('click', function () {
+		const $btn = $(this);
+		const $spinner = $('#my_create_customer_spinner');
+		const $error = $('#my_create_customer_error').text('');
+
+		const first_name = $('#new_customer_first_name').val().trim();
+		const last_name = $('#new_customer_last_name').val().trim();
+		const email = $('#new_customer_email').val().trim();
+		const phone = $('#new_customer_phone').val().trim();
+
+		if (!email) {
+			$error.text('Vložte email');
+			return;
+		}
+
+		$btn.prop('disabled', true);
+		$spinner.addClass('is-active');
+
+		$.post(lk_admin_ajax_obj.ajax_url, {
+			action: 'my_create_customer',
+			nonce: lk_admin_ajax_obj.nonce,
+			first_name,
+			last_name,
+			email,
+			phone,
+		})
+			.done(function (response) {
+				if (response.success) {
+					const customer = response.data;
+
+					// Add the new customer as a Select2 option and select them
+					const $select = $('#my_customer_search');
+					const option = new Option(customer.label, customer.id, true, true);
+					$select.append(option).trigger('change');
+
+					// Hide the form and clear fields
+					$('#my_new_customer_form').slideUp();
+					$('#new_customer_first_name, #new_customer_last_name, #new_customer_email, #new_customer_phone').val('');
+				} else {
+					$error.text(response.data || 'Chyba');
+				}
+			})
+			.fail(function () {
+				$error.text('Chyba');
+			})
+			.always(function () {
+				$btn.prop('disabled', false);
+				$spinner.removeClass('is-active');
+			});
+	});
+
+	// Preselect existing customer if editing an order
+	const $form = $('#custom_order_form');
+	const existing_customer_id = $form.data('existing_customer_id');
+	const existing_customer_name = $form.data('existing_customer_name');
+	if (existing_customer_id && existing_customer_name) {
+		const $select = $('#my_customer_search');
+		const option = new Option(
+			existing_customer_name,
+			existing_customer_id,
+			true,
+			true
+		);
+		$select.append(option).trigger('change');
+	}
+
+});
