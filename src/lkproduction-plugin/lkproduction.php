@@ -2,7 +2,7 @@
 /**
  * Plugin Name: LK Production Rent
  * Description: Rezervační systém pro LK Production
- * Version: 1.1.4
+ * Version: 1.2.0
  * Author: Karel
  * Text Domain: lkproduction
  * Requires at least: 6.0
@@ -161,3 +161,14 @@ add_action('woocommerce_order_action_duplicate_order', function (WC_Order $order
 	wp_redirect($redirect);
 	exit;
 });
+
+/**
+ * Automatically create a WordPress user account from guest order data.
+ * Covers both frontend checkout and admin-created orders.
+ */
+
+// Frontend checkout - fires after order is fully saved
+add_action( 'woocommerce_new_order', 'lk_production_auto_create_user_from_order_id', 10, 1 );
+
+// Admin order creation - use a later priority (999) to run after WooCommerce's own save
+add_action( 'woocommerce_process_shop_order_meta', 'lk_production_auto_create_user_from_order_id', 999, 1 );
