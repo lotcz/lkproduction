@@ -7,6 +7,44 @@ if (!defined('ABSPATH')) {
 require_once __DIR__ . '/lk-common.php';
 
 /**
+ * ADD AUTO-BOOKED PRODUCTS
+ */
+function lk_add_auto_book_products_to_order($order) {
+	if (lk_order_get_auto_products_added($order)) return;
+
+	$products = lk_get_auto_book_products();
+
+	if (empty($products)) return;
+
+	foreach ($products as $product_id => $qty) {
+		if ($qty < 1) {
+			continue;
+		}
+
+		// Skip if product is already in the order
+		$already_added = false;
+		foreach ($order->get_items() as $item) {
+			if ($item->get_product_id() === $product_id) {
+				$already_added = true;
+				break;
+			}
+		}
+
+		if ($already_added) {
+			continue;
+		}
+
+		$product = wc_get_product($product_id);
+		if ($product) $order->add_product($product, $qty);
+	}
+
+	$order->calculate_totals();
+
+	lk_order_set_auto_products_added($order);
+	$order->save();
+}
+
+/**
  * Inject editable rental fields directly into the WooCommerce Order "General" section
  */
 add_action('woocommerce_admin_order_data_after_order_details', 'rental_editable_fields_in_general_section');
@@ -363,76 +401,71 @@ function lk_production_duplicate_woo_order(int $order_id) {
 	$new_order->calculate_totals();
 	$new_order->save();
 
+	lk_order_set_auto_products_added($new_order);
+
 	return $new_order->get_id();
 }
 
-function lk_production_auto_create_user_from_order_id( $order_id ) {
-	$order = wc_get_order( $order_id );
-	if ( $order ) {
-		lk_production_auto_create_user_from_order( $order );
-	}
-}
-
-function lk_production_auto_create_user_from_order( $order ) {
+function lk_production_auto_create_user_from_order($order) {
 
 	// Skip if the order already belongs to a registered user
-	if ( $order->get_user_id() ) {
+	if ($order->get_user_id()) {
 		return;
 	}
 
 	$email = $order->get_billing_email();
 
 	// Skip if no email
-	if ( ! $email ) {
+	if (!$email) {
 		return;
 	}
 
 	// If user already exists with this email, just link them
-	$existing_user = get_user_by( 'email', $email );
-	if ( $existing_user ) {
-		update_post_meta( $order->get_id(), '_customer_user', $existing_user->ID );
+	$existing_user = get_user_by('email', $email);
+	if ($existing_user) {
+		update_post_meta($order->get_id(), '_customer_user', $existing_user->ID);
 		return;
 	}
 
 	$first_name = $order->get_billing_first_name();
-	$last_name  = $order->get_billing_last_name();
-	$username   = wc_create_new_customer_username( $email, [
+	$last_name = $order->get_billing_last_name();
+	$username = wc_create_new_customer_username($email, [
 		'first_name' => $first_name,
-		'last_name'  => $last_name,
+		'last_name' => $last_name,
 	]);
 
 	// Create the user (no email notification)
-	$customer_id = wc_create_new_customer( $email, $username, wp_generate_password(), [
+	$customer_id = wc_create_new_customer($email, $username, wp_generate_password(), [
 		'first_name' => $first_name,
-		'last_name'  => $last_name,
+		'last_name' => $last_name,
 	]);
 
-	if ( is_wp_error( $customer_id ) ) {
+	if (is_wp_error($customer_id)) {
 		wc_get_logger()->error(
 			'auto_create_user_from_order failed: ' . $customer_id->get_error_message(),
-			[ 'source' => 'auto-customer-creation' ]
+			['source' => 'auto-customer-creation']
 		);
 		return;
 	}
 
 	// Update user meta with billing info
-	update_user_meta( $customer_id, 'first_name',         $first_name );
-	update_user_meta( $customer_id, 'last_name',          $last_name );
-	update_user_meta( $customer_id, 'billing_first_name', $first_name );
-	update_user_meta( $customer_id, 'billing_last_name',  $last_name );
-	update_user_meta( $customer_id, 'billing_email',      $email );
-	update_user_meta( $customer_id, 'billing_phone',      $order->get_billing_phone() );
-	update_user_meta( $customer_id, 'billing_address_1',  $order->get_billing_address_1() );
-	update_user_meta( $customer_id, 'billing_address_2',  $order->get_billing_address_2() );
-	update_user_meta( $customer_id, 'billing_city',       $order->get_billing_city() );
-	update_user_meta( $customer_id, 'billing_postcode',   $order->get_billing_postcode() );
-	update_user_meta( $customer_id, 'billing_country',    $order->get_billing_country() );
-	update_user_meta( $customer_id, 'billing_state',      $order->get_billing_state() );
+	update_user_meta($customer_id, 'first_name', $first_name);
+	update_user_meta($customer_id, 'last_name', $last_name);
+	update_user_meta($customer_id, 'billing_first_name', $first_name);
+	update_user_meta($customer_id, 'billing_last_name', $last_name);
+	update_user_meta($customer_id, 'billing_email', $email);
+	update_user_meta($customer_id, 'billing_phone', $order->get_billing_phone());
+	update_user_meta($customer_id, 'billing_address_1', $order->get_billing_address_1());
+	update_user_meta($customer_id, 'billing_address_2', $order->get_billing_address_2());
+	update_user_meta($customer_id, 'billing_city', $order->get_billing_city());
+	update_user_meta($customer_id, 'billing_postcode', $order->get_billing_postcode());
+	update_user_meta($customer_id, 'billing_country', $order->get_billing_country());
+	update_user_meta($customer_id, 'billing_state', $order->get_billing_state());
 
 	// Use update_post_meta directly to bypass WooCommerce's save cycle
-	update_post_meta( $order->get_id(), '_customer_user', $customer_id );
+	update_post_meta($order->get_id(), '_customer_user', $customer_id);
 
 	// Recalculate total spent and order count for the new customer
-	WC_Customer::delete_meta_cache( $customer_id );
-	wc_update_total_sales_counts( $order->get_id() );
+	//WC_Customer::delete_meta_cache($customer_id);
+	wc_update_total_sales_counts($order->get_id());
 }

@@ -207,6 +207,8 @@ window.addEventListener(
 				}
 			)
 		);
+
+		updateFormTotal();
 	}
 );
 

@@ -126,6 +126,16 @@ function lk_order_set_end_date($order, $date) {
 	$order->update_meta_data(LK_ORDER_END_DATE_META, $date);
 }
 
+const LK_ORDER_AUTO_PRODUCTS_ADDED_META = '_rental_auto_product_added';
+
+function lk_order_set_auto_products_added($order, $added = 1) {
+	$order->update_meta_data(LK_ORDER_AUTO_PRODUCTS_ADDED_META, $added);
+}
+
+function lk_order_get_auto_products_added($order) {
+	return (int)$order->get_meta(LK_ORDER_AUTO_PRODUCTS_ADDED_META) > 0;
+}
+
 function lk_order_get_end_date($order) {
 	return $order->get_meta(LK_ORDER_END_DATE_META);
 }
@@ -212,7 +222,6 @@ function lk_set_product_auto_book($product_id, $amount) {
 function lk_get_product_auto_book($product_id) {
 	return (int)get_post_meta($product_id, LK_PRODUCT_AUTO_BOOK_AMOUNT_META, true);
 }
-
 
 /* Return list of all products ids with auto book amount */
 function lk_get_auto_book_products(): array {

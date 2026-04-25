@@ -48,7 +48,7 @@ function lk_get_all_public_woocommerce_products(): array {
 			LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm.post_id AND pm.meta_key = %s)
 			LEFT JOIN {$wpdb->postmeta} pm2 ON (p.ID = pm2.post_id AND pm2.meta_key = '_price')
 			WHERE p.post_type = 'product' 
-			  AND p.post_status = 'publish'
+			  /*AND p.post_status = 'publish'*/
 			  AND tt.taxonomy = 'product_cat'
 			ORDER BY t.name ASC, p.post_title ASC
 		",
@@ -103,6 +103,7 @@ function lk_save_order($order_id = null, $customer_id = null, $event_name = null
 	lk_order_set_event_name($order, $event_name);
 	lk_order_set_start_date($order, $start_date);
 	lk_order_set_end_date($order, $end_date);
+	lk_order_set_auto_products_added($order);
 
 	$order->remove_order_items();
 
