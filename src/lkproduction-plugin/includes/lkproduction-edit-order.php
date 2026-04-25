@@ -196,6 +196,9 @@ function lk_rental_render_custom_order_form() {
 			$quantity = $item->get_quantity();
 			$order_items[$product_id] = $quantity;
 		}
+	} else {
+		// auto items
+		$order_items = lk_get_auto_book_products();
 	}
 
 	if ($customer_id) {

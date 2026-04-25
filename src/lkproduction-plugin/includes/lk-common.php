@@ -193,6 +193,41 @@ function lk_get_product_total_stock($product_id) {
 	return (int)get_post_meta($product_id, LK_PRODUCT_TOTAL_STOCK_META, true);
 }
 
+const LK_PRODUCT_AUTO_BOOK_AMOUNT_META = '_rental_auto_book_amount';
+
+function lk_set_product_auto_book($product_id, $amount) {
+	update_post_meta($product_id, LK_PRODUCT_AUTO_BOOK_AMOUNT_META, (int)$amount);
+}
+
+/* Get total owned amount of certain product */
+function lk_get_product_auto_book($product_id) {
+	return (int)get_post_meta($product_id, LK_PRODUCT_AUTO_BOOK_AMOUNT_META, true);
+}
+
+
+/* Return list of all products ids with auto book amount */
+function lk_get_auto_book_products(): array {
+	global $wpdb;
+
+	$query = $wpdb->prepare("
+        SELECT meta.post_id AS product_id, 
+        	meta.meta_value AS quantity
+        FROM {$wpdb->prefix}postmeta AS meta
+        WHERE meta.meta_key = %s
+    ", LK_PRODUCT_AUTO_BOOK_AMOUNT_META);
+
+	$items = $wpdb->get_results($query);
+
+	//aggregate by product
+	$aggregated = array();
+
+	foreach ($items as $item) {
+		$aggregated[(int)$item->product_id] = (int)$item->quantity;
+	}
+
+	return $aggregated;
+}
+
 /* Return list of all booked products for certain period */
 function lk_get_booked_products($start_date, $end_date, $exclude_order_id = null, $product_id = null): array {
 	global $wpdb;

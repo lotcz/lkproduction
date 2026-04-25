@@ -30,13 +30,25 @@ function rental_inventory_tab_panel() {
 	echo '<div id="lk_rental_inventory_options" class="panel woocommerce_options_panel">';
 	echo '<div class="options_group">';
 
-	// We use woocommerce_wp_text_input with 'type' => 'number'
 	woocommerce_wp_text_input(array(
 		'id' => LK_PRODUCT_TOTAL_STOCK_META,
 		'label' => 'Celkový počet',
 		'placeholder' => '0',
 		'desc_tip' => true,
 		'description' => 'Celkový počet kusů ve firmě, který je k dispozici pro pronájem.',
+		'type' => 'number',
+		'custom_attributes' => array(
+			'step' => '1',
+			'min' => '0'
+		)
+	));
+
+	woocommerce_wp_text_input(array(
+		'id' => LK_PRODUCT_AUTO_BOOK_AMOUNT_META,
+		'label' => 'Automaticky objednat',
+		'placeholder' => '0',
+		'desc_tip' => true,
+		'description' => 'Počet kusů automaticky vložený do nové objednávky.',
 		'type' => 'number',
 		'custom_attributes' => array(
 			'step' => '1',
@@ -55,6 +67,9 @@ add_action('woocommerce_process_product_meta', 'rental_save_tab_data');
 function rental_save_tab_data($product_id) {
 	$rental_stock = isset($_POST[LK_PRODUCT_TOTAL_STOCK_META]) ? $_POST[LK_PRODUCT_TOTAL_STOCK_META] : '';
 	lk_set_product_total_stock($product_id, sanitize_text_field($rental_stock));
+
+	$auto_book = isset($_POST[LK_PRODUCT_AUTO_BOOK_AMOUNT_META]) ? $_POST[LK_PRODUCT_AUTO_BOOK_AMOUNT_META] : '';
+	lk_set_product_auto_book($product_id, sanitize_text_field($auto_book));
 }
 
 /* availability on product page */
