@@ -67,6 +67,15 @@ function lk_get_total_days($start, $end): int {
 	}
 }
 
+// discounts for additional days
+function lk_get_price_multiplicator($days): float {
+	if ($days <= 0) return 0;
+	if ($days <= 1) return 1;
+	if ($days <= 2) return 1.6;
+	$days -= 2;
+	return 1.6 + ($days * 0.4);
+}
+
 /* CART */
 
 function lk_cart_get_daily_price(): float {
@@ -87,7 +96,7 @@ function lk_cart_get_total_days(): float {
 }
 
 function lk_cart_get_total_price(): float {
-	return lk_cart_get_daily_price() * lk_cart_get_total_days();
+	return lk_cart_get_daily_price() * lk_get_price_multiplicator(lk_cart_get_total_days());
 }
 
 /* ORDER */
@@ -167,7 +176,7 @@ function lk_order_get_total_days($order): float {
 }
 
 function lk_order_get_total_price($order): float {
-	return lk_order_get_daily_price($order) * lk_order_get_total_days($order);
+	return lk_order_get_daily_price($order) * lk_get_price_multiplicator(lk_order_get_total_days($order));
 }
 
 function lk_order_get_edit_link_custom($order_id, $duplicate = false): string {

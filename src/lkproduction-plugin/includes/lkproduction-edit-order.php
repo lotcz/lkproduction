@@ -378,7 +378,7 @@ function lk_rental_render_custom_order_form() {
 							$booked = $product['booked'];
 							$qty = $order_items[$id] ?? 0;
 							$stockCurrent = $stock - ($booked + $qty);
-							$total = $price * $qty * $days;
+							$total = $price * $qty * lk_get_price_multiplicator($days);
 							$link = admin_url("post.php?post=$id&action=edit");
 							?>
 							<tr
@@ -683,7 +683,7 @@ function lk_render_custom_order_print_preview() {
 					$desc = $product['desc'];
 					$price = $product['price'];
 					$qty = $product['qty'];
-					$total = $price * $qty * $days;
+					$total = $price * $qty * lk_get_price_multiplicator($days);
 					?>
 					<tr class="product-row">
 						<td><?php echo $name ?></td>

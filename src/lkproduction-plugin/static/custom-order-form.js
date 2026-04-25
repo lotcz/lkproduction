@@ -93,7 +93,16 @@ window.addEventListener(
 
 		const getRowDaily = (row) => getRowQty(row) * getRowPrice(row);
 
-		const getRowTotal = (row) => getRowDaily(row) * getFormTotalDays();
+		// discounts for additional days
+		const getPriceMultiplicator = (days) => {
+			if (days <= 0) return 0;
+			if (days <= 1) return 1;
+			if (days <= 2) return 1.6;
+			days -= 2;
+			return 1.6 + (days * 0.4);
+		};
+
+		const getRowTotal = (row) => getRowDaily(row) * getPriceMultiplicator(getFormTotalDays());
 
 		const getRowTotalStock = (row) => {
 			const n = parseInt(row.dataset.stock_total);
@@ -111,7 +120,7 @@ window.addEventListener(
 				const row = rows[i];
 				total += getRowDaily(row);
 			}
-			return total * getFormTotalDays();
+			return total * getPriceMultiplicator(getFormTotalDays());
 		}
 
 		const updateFormTotal = () => {

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: LK Production Rent
  * Description: Rezervační systém pro LK Production
- * Version: 1.2.2
+ * Version: 1.2.3
  * Author: Karel
  * Text Domain: lkproduction
  * Requires at least: 6.0

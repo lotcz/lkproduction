@@ -27,6 +27,7 @@
 	text-align: left;
 }
 
+.cart_totals .order-total,
 .woocommerce-shipping-totals.shipping {
 	display: none;
 }
