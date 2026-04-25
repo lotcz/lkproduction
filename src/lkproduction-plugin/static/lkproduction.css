@@ -28,6 +28,7 @@
 }
 
 .cart_totals .order-total,
+.woocommerce-checkout-review-order .wc_payment_method,
 .woocommerce-shipping-totals.shipping {
 	display: none;
 }
